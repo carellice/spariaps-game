@@ -1,0 +1,23 @@
+#!/bin/bash
+# Apre il gioco: cerca index.html accanto all'app, altrimenti nella cartella del progetto.
+APP_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
+GAME="$APP_DIR/index.html"
+[ -f "$GAME" ] || GAME="$HOME/Desktop/Spariaps/index.html"
+if [ ! -f "$GAME" ]; then
+  osascript -e 'display alert "Spariaps" message "Non trovo index.html. Tieni Spariaps.app nella cartella del gioco."'
+  exit 1
+fi
+CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+if [ -x "$CHROME" ]; then
+  # finestra "app" di Chrome: niente schede né barra degli indirizzi, e il tasto ESCI del gioco può chiuderla
+  URL="file://$(printf '%s' "$GAME" | sed 's/ /%20/g')"
+  # profilo dedicato: così Chrome parte come istanza separata e accetta il flag che fa partire
+  # la musica subito all'apertura (senza, Chrome aspetta il primo clic prima di riprodurre audio)
+  PROFILE="$HOME/Library/Application Support/Spariaps/Chrome"
+  mkdir -p "$PROFILE"
+  "$CHROME" --user-data-dir="$PROFILE" --autoplay-policy=no-user-gesture-required \
+    --no-first-run --no-default-browser-check --app="$URL" >/dev/null 2>&1 &
+  disown
+else
+  open "$GAME"
+fi
