@@ -102,6 +102,7 @@
   #perks { position: absolute; left: 22px; bottom: 122px; display: flex; gap: 6px; }
   #perks span { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font: 700 13px var(--num); letter-spacing: .5px; color: #0b0f16;
     background: var(--c); box-shadow: 0 0 14px color-mix(in srgb, var(--c) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.5); }
+  #perks span.life { font-size: 17px; border-radius: 50%; color: #fff; }
   #powerups { position: absolute; left: 20px; bottom: 164px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
   .pu { --c: #fff; display: flex; align-items: center; gap: 9px; padding: 8px 12px 8px 10px; border-radius: 14px; animation: puIn .35s cubic-bezier(.2,.9,.3,1.3); }
   .pu svg { width: 20px; height: 20px; color: var(--c); filter: drop-shadow(0 0 6px var(--c)); }
@@ -1836,8 +1837,12 @@ const PERKS = {
   speed:  { name: 'GAMBE D’ACCIAIO', tag: 'GA', css: '#ffe45c', cost: 1500, desc: 'Ti muovi il 12% più veloce.' },
   regen:  { name: 'SANGUE FREDDO',   tag: 'SF', css: '#6cd4ff', cost: 2000, desc: 'La vita inizia a rigenerarsi in metà tempo e al doppio della velocità.' },
   loot:   { name: 'SCIACALLO',       tag: 'SC', css: '#c98bff', cost: 1500, desc: 'Guadagni il 30% di crediti in più da ogni uccisione.' },
+  revive: { name: 'SECONDA VITA',    tag: '♥',  css: '#ff5c7a', cost: 3000, desc: 'Una vita di scorta: se cadi ti rialzi subito. Ne puoi tenere due.' },
 };
 let perks = {};
+// second lives: one at the start of every match, one more from each boss or from the perk machine
+const MAX_REVIVES = 2;
+let revives = 1;
 // built facing local +z; the body is the only part with a collider
 function station(kind, x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; B.root.add(g);
@@ -1864,7 +1869,7 @@ function station(kind, x, z, ry) {
     body = add(rbox(1.5, 2.3, 0.9, 0.08), shell, 0, 1.15, 0);
     const [c, cg] = canvas(256); c.height = 384;
     const gr = cg.createLinearGradient(0, 0, 0, 384); gr.addColorStop(0, '#2a1244'); gr.addColorStop(1, '#0c0616'); cg.fillStyle = gr; cg.fillRect(0, 0, 256, 384);
-    Object.values(PERKS).forEach((pk, i) => {
+    Object.values(PERKS).slice(0, 6).forEach((pk, i) => {
       const bx = 44 + (i % 3) * 84, by = 96 + ((i / 3) | 0) * 130;
       cg.fillStyle = 'rgba(255,255,255,.08)'; cg.fillRect(bx - 34, by + 62, 68, 6);
       cg.shadowColor = pk.css; cg.shadowBlur = 16; cg.fillStyle = pk.css;
@@ -3186,9 +3191,27 @@ function damagePlayer(amount, from, raw = false) {
   el.className = 'dmgdir'; el.style.transform = `rotate(${rot}rad)`;
   $('dmgdirs').appendChild(el);
   el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 1200, easing: 'ease-in' }).onfinish = () => el.remove();
-  if (player.hp <= 0) gameOver();
+  if (player.hp <= 0) { if (revives > 0) secondLife(); else gameOver(); }
 }
 
+// knocked down with a life in reserve: back on your feet, briefly untouchable, and everything around you is dazed
+function secondLife() {
+  revives--; renderPerks();
+  player.hp = 60; player.lastHit = now; hurt = 0;
+  powers.god = Math.max(powers.god, 3.5);
+  blind = Math.max(blind, 0.55);
+  player.shake = 1;
+  const p = player.pos.clone().setY(player.pos.y + 0.12);
+  addWave(p, 9, 0.5);
+  spawnParticles(p.clone().setY(p.y + 1), 0xff5c7a, 40, new V3(0, 1, 0), 8);
+  for (const b of enemies) {
+    if (b.dead || Math.hypot(b.pos.x - player.pos.x, b.pos.z - player.pos.z) > 9) continue;
+    b.stunT = Math.max(b.stunT, b.boss ? 0.9 : 2.4);
+  }
+  showBanner('SECONDA VITA', revives ? `TE NE RESTA ANCORA ${revives === 1 ? 'UNA' : revives}` : 'ERA L’ULTIMA · LA PROSSIMA CADUTA È LA FINE');
+  rumble(1, 1, 500);
+  withCat('fx', () => { sfxTone(110, 0.5, 0.3, 'sine', 55); [392, 523, 659, 784].forEach((f, i) => sfxTone(f, 0.3, 0.1, 'triangle', f, 0.12 + i * 0.09)); });
+}
 function updatePlayer(dt) {
   const fwd = new V3(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   const right = new V3(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -5645,7 +5668,7 @@ function resetArsenal() {
   while (drops.length) removeDrop(drops[0]);
   Object.assign(equip, EQUIP_START);
   slots = [primary, 'pistol']; renderSlots();
-  upg = {}; perks = {}; renderPerks();
+  upg = {}; perks = {}; revives = 1; renderPerks();
   cash = 0; addCash(500);
   placeBox(true);
   promptKey = ''; $('prompt').classList.remove('on');
@@ -5680,6 +5703,7 @@ function bossDefeated(b) {
   // loot: health, armour and throwables around the body
   [['health', 1.6, 0], ['armor', -1.6, 0], ['equip', 0, 1.6], ['equip', 0, -1.6]].forEach(([t, ox, oz]) => pickups.push(new Pickup(t, b.pos.x + ox, b.pos.z + oz, true)));
   toast(`BOSS SCONFITTO · +${bonus} CREDITI`, 'pu', 'coin', '#ffd45a');
+  if (revives < MAX_REVIVES) { revives++; renderPerks(); setTimeout(() => toast('+1 SECONDA VITA', 'hp'), 900); }
 }
 function updateWaves(dt) {
   if (waveBreak > 0) {
@@ -5950,10 +5974,10 @@ function renderShop() {
   $('shopCash').textContent = cash;
   if (shopKind === 'perks') {
     $('shopGrid').innerHTML = Object.entries(PERKS).map(([k, pk]) => `
-      <button class="perkc glass${perks[k] ? ' own' : ''}" data-k="${k}" style="--c:${pk.css}" ${perks[k] || cash < pk.cost ? 'disabled' : ''}>
+      <button class="perkc glass${perkOwned(k) ? ' own' : ''}" data-k="${k}" style="--c:${pk.css}" ${perkOwned(k) || cash < pk.cost ? 'disabled' : ''}>
         <span class="pt">${pk.tag}</span>
-        <span class="pi"><b>${pk.name}</b><small>${pk.desc}</small></span>
-        <span class="uc">${perks[k] ? 'ATTIVO' : pk.cost}</span>
+        <span class="pi"><b>${pk.name}${k === 'revive' ? ` · ${revives}/${MAX_REVIVES}` : ''}</b><small>${pk.desc}</small></span>
+        <span class="uc">${perkOwned(k) ? (k === 'revive' ? 'AL MASSIMO' : 'ATTIVO') : pk.cost}</span>
       </button>`).join('');
     $('shopGrid').querySelectorAll('.perkc').forEach(b => b.addEventListener('click', () => buyPerk(b.dataset.k)));
     return;
@@ -5982,17 +6006,19 @@ function buyUpgrade(k, t) {
   withCat('ui', () => { sfxTone(520, 0.1, 0.1, 'triangle', 780); sfxTone(1040, 0.18, 0.08, 'triangle', 1560, 0.08); });
   renderShop();
 }
+const perkOwned = k => k === 'revive' ? revives >= MAX_REVIVES : !!perks[k];
 function buyPerk(k) {
   const pk = PERKS[k];
-  if (!pk || perks[k] || cash < pk.cost) return;
+  if (!pk || perkOwned(k) || cash < pk.cost) return;
   addCash(-pk.cost);
-  perks[k] = true;
+  if (k === 'revive') revives++; else perks[k] = true;
   withCat('ui', () => [1, 1.25, 1.5, 2].forEach((m, i) => sfxTone(392 * m, 0.22, 0.09, 'triangle', 392 * m, i * 0.07)));
   renderPerks(); renderShop();
 }
 // owned perks, shown as small tags next to the health box
 function renderPerks() {
-  $('perks').innerHTML = Object.keys(PERKS).filter(k => perks[k]).map(k => `<span style="--c:${PERKS[k].css}" title="${PERKS[k].name}">${PERKS[k].tag}</span>`).join('');
+  $('perks').innerHTML = `<span class="life" style="--c:${PERKS.revive.css}" title="Seconda vita">♥</span>`.repeat(revives)
+    + Object.keys(PERKS).filter(k => perks[k]).map(k => `<span style="--c:${PERKS[k].css}" title="${PERKS[k].name}">${PERKS[k].tag}</span>`).join('');
 }
 $('shopClose').addEventListener('click', closeShop);
 addEventListener('keydown', e => {
