@@ -38,7 +38,11 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 - 🎯 **Due modalità di gioco**
   - **Classica:** arena verticale con piattaforme sospese, trampolini e doppio salto, contro bot armati che ti cercano e rispondono al fuoco.
   - **Zombie:** notte, nebbia e orde corpo a corpo. Corridori, arrampicatori dagli occhi viola e abomini giganti.
-- 💀 **Boss ogni 5 ondate:** il **COLOSSO** nella Classica, l'**ABOMINIO** nella modalità Zombie. Più forti a ogni livello.
+- 💀 **Boss ogni 5 ondate, in tre fasi:** il **COLOSSO** nella Classica (razzi a ventaglio e bombardamento annunciato da cerchi rossi), l'**ABOMINIO** nella modalità Zombie (colpo a terra da schivare saltando, raffiche di acido). A ogni fase chiamano rinforzi.
+- 👾 **Nemici speciali:** zombie **sputatori** che colpiscono da lontano, **esplosivi** che scoppiano addosso e **corazzati** resistenti ai proiettili; nella Classica i **cecchini**, che ti puntano con un laser prima di sparare.
+- 🔧 **Banco armi:** spendi i crediti per potenziare danno, caricatore e ricarica delle armi che porti con te.
+- 🥤 **Distributore di perk:** tra un'ondata e l'altra compri abilità permanenti come Pelle dura, Mani svelte o Doppio colpo.
+- ❤️ **Seconda vita:** una vita di scorta a partita, e altre da guadagnare battendo i boss.
 - 🎁 **Cassa misteriosa:** spendi i crediti guadagnati con le uccisioni e tenta la sorte, dall'arma comune alla **leggendaria**. Poi la cassa sparisce e ricompare altrove.
 - 🔫 **13 armi**, ognuna con modello, suono e sistema di mira dedicati: tacche metalliche, red dot, olografici e ottiche.
 - 🧍 **5 classi**, ognuna con arma principale e bonus unici. Puoi cambiarla a partita in corso, per un massimo di 2 volte.
