@@ -32,6 +32,9 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 
 ## CARATTERISTICHE PRINCIPALI
 
+- 🗺️ **Due mappe**, da scegliere prima di ogni partita
+  - **Quartiere:** un incrocio di città con piazza e fontana, vicoli, parcheggio, officina e benzinaio. Auto, autobus e palazzi per ripararsi; nella Classica i trampolini portano sui tetti.
+  - **Arena:** il campo di prova aperto e simmetrico, con muri bassi, casse e piattaforme sospese.
 - 🎯 **Due modalità di gioco**
   - **Classica:** arena verticale con piattaforme sospese, trampolini e doppio salto, contro bot armati che ti cercano e rispondono al fuoco.
   - **Zombie:** notte, nebbia e orde corpo a corpo. Corridori, arrampicatori dagli occhi viola e abomini giganti.
@@ -158,7 +161,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 2. In alternativa apri **`index.html`** con un browser moderno. In questo caso la musica parte dopo il primo clic.
 
 > **Windows · collegamento con l'icona:** tasto destro su `Spariaps.bat` → *Mostra altre opzioni* → *Crea collegamento*. Poi apri le *Proprietà* del collegamento → *Cambia icona…* e scegli **`Spariaps.ico`**.
-3. Scegli **modalità** e **difficoltà**, premi **GIOCA**, seleziona la **classe** e buona fortuna.
+3. Scegli **modalità** e **difficoltà**, premi **GIOCA**, seleziona la **mappa** e la **classe** e buona fortuna.
 
 Dalle **Impostazioni** puoi regolare:
 - luci, luminosità e qualità grafica (3 livelli);
