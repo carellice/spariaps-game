@@ -1363,7 +1363,7 @@ function tryJumpPad() {
 }
 
 // ============================================================ map 2: "Quartiere" — a small Italian neighbourhood around a crossroads
-const CITY = { facades: [], signs: [], redraw: [], glass: null, pool: null };
+const CITY = { facades: [], signs: [], redraw: [], glass: null, pool: null, lightI: 0 };
 // plastered facade, 4 bays x 4 floors per tile: windows with shutters, sills and string courses; a second canvas lights some windows at night
 function facadeTex(wall, shutter, frame = '#e9e2d2') {
   const S = 512, n = 4, cs = S / n, [c, g] = canvas(S), [ec, eg] = canvas(S);
@@ -1437,7 +1437,7 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
 }
 {
   newMap('city', {
-    name: 'QUARTIERE', tag: 'CITTÀ', desc: 'Un incrocio di quartiere: piazza con fontana, vicoli, parcheggio e benzinaio. Auto e palazzi per ripararsi, tetti da raggiungere.',
+    name: 'QUARTIERE', tag: 'CITTÀ', desc: 'Un incrocio di quartiere: piazza con fontana, vicoli, parcheggio e benzinaio. Quattro edifici da aprire con i crediti per ripararsi all’interno.',
     start: [0, 0, 0], fallback: [-37.5, -37.5], orbit: [47, 27], shot: [-30, 28, 40, 2, 1, -4],
     roads: [[-5, -40, 5, 40], [-40, -5, 40, 5]],
     boxSpots: [[27.5, -17], [9.5, -27], [-23, -37.4], [-37.6, -14], [-23.5, 18], [-11.5, 37.5], [14, 37.6], [37, 16]],
@@ -1480,6 +1480,20 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
     shelter: std(0x9fc4d8, 0.1, 0.3, { transparent: true, opacity: 0.35 }),
   };
   CM.asphalt.map.repeat.set(16, 16); CM.asphalt.bumpMap.repeat.set(16, 16);
+  // ground floors you can walk into: rendered base outside, plaster or tiles inside
+  const surf = (base, seam, cells, rough = 0.85, blotch = 0.12) => new THREE.MeshStandardMaterial({ ...surface({ base, seam, cells, blotch }), bumpScale: 1, roughness: rough });
+  Object.assign(CM, {
+    extA: surf('#b3915a', '#b3915a', 1, 0.9, 0.16), extB: surf('#a56a50', '#a56a50', 1, 0.9, 0.16),
+    plaster: surf('#d6cdb8', '#d6cdb8', 1, 0.92), tileW: surf('#d5dade', '#a9b0b7', 6, 0.35), wallGrey: surf('#8b8f93', '#74787c', 2, 0.85, 0.18),
+    floorTile: surf('#b3a995', '#8a8170', 4, 0.5), floorShop: surf('#c9ccd0', '#9a9fa5', 4, 0.35), floorGarage: surf('#5d6064', '#4c4f53', 2, 0.7, 0.22),
+    ceil: std(0xe4e1d8, 0.95), roofing: std(0x4b4e53, 0.9), rack: std(0x4a4f57, 0.55, 0.45),
+    neonG: new THREE.MeshStandardMaterial({ color: 0x06200c, emissive: 0x3dff7a, emissiveIntensity: 3 }),
+  });
+  {
+    const [rc, rg] = canvas(64); rg.fillStyle = '#8b9097'; rg.fillRect(0, 0, 64, 64);
+    for (let y = 0; y < 64; y += 16) { rg.fillStyle = 'rgba(0,0,0,.38)'; rg.fillRect(0, y, 64, 3); rg.fillStyle = 'rgba(255,255,255,.2)'; rg.fillRect(0, y + 3, 64, 3); }
+    CM.roller = new THREE.MeshStandardMaterial({ map: finishTex(rc), roughness: 0.45, metalness: 0.6 });
+  }
   for (const k of ['sidewalk', 'plaza', 'fore']) CM[k].userData.hit = true;
   {
     const [fc, fg] = canvas(64); fg.strokeStyle = '#a8aeb6'; fg.lineWidth = 3;
@@ -1525,8 +1539,9 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
   for (const [x, z, w, d, y] of [[-19, 13, 2, 2, 0.013], [-29.8, 13, 2.2, 2.2, 0.013], [-24.4, 23, 2, 2.4, 0.013], [22, 14.5, 3, 2, 0.053], [24, 20, 3, 3, 0.053], [2.5, -22, 3, 6, 0.013], [-37.5, -27, 3, 4, 0.083], [-25, 30, 3, 3, 0.013], [0, 0, 4, 4, 0.013]]) blot(decoMats.stain, x, z, w, d, y);
 
   // ---- buildings
-  const bld = (x, z, w, h, d, mat) => {
-    const m = new THREE.Mesh(facadeGeo(w, h, d), mat); m.position.set(x, h / 2, z); addSolid(m);
+  // `base` lifts the facade off the ground for buildings with a hollow ground floor
+  const bld = (x, z, w, h, d, mat, base = 0) => {
+    const m = new THREE.Mesh(facadeGeo(w, h - base, d), mat); m.position.set(x, (h + base) / 2, z); addSolid(m);
     for (const s of [-1, 1]) {
       put(new THREE.BoxGeometry(w + 0.3, 0.5, 0.3), CM.cornice, x, h + 0.1, z + s * d / 2);
       put(new THREE.BoxGeometry(0.3, 0.5, d + 0.3), CM.cornice, x + s * w / 2, h + 0.1, z);
@@ -1543,6 +1558,12 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
     else put(geo, mat, b.x - b.w / 2 - out, y, b.z + a, -Math.PI / 2);
   };
   const faceLen = (b, side) => side === 'S' || side === 'N' ? b.w : b.d;
+  // awning and glowing sign over a shop front
+  const front = (b, side, a, len, text, awn, col) => {
+    const F = onFace(b, side);
+    if (awn) F(new THREE.BoxGeometry(len + 0.2, 0.06, 1.5).rotateX(0.32), awn, a, 3.05, 0.8);
+    if (text) { F(new THREE.BoxGeometry(4, 1, 0.1), mats.trim, a, 3.72, 0.05); F(new THREE.PlaneGeometry(3.7, 0.92), signMat(text, col), a, 3.72, 0.11); }
+  };
   const shop = (b, side, a, len, text, awn, col) => {
     const F = onFace(b, side);
     F(new THREE.BoxGeometry(len + 0.3, 3.1, 0.12), mats.trim, a, 1.55, 0.02);
@@ -1551,8 +1572,7 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
     const n = Math.max(1, Math.round(len / 2.6));
     for (let k = 0; k <= n; k++) F(new THREE.BoxGeometry(0.12, 2.4, 0.16), mats.trim, a - len / 2 + k * len / n, 1.6, 0.08);
     F(new THREE.BoxGeometry(1.1, 2.3, 0.1), CM.door, a + len / 2 - 0.85, 1.5, 0.12);
-    if (awn) F(new THREE.BoxGeometry(len + 0.2, 0.06, 1.5).rotateX(0.32), awn, a, 2.95, 0.8);
-    if (text) { F(new THREE.BoxGeometry(4, 1, 0.1), mats.trim, a, 3.72, 0.05); F(new THREE.PlaneGeometry(3.7, 0.92), signMat(text, col), a, 3.72, 0.11); }
+    front(b, side, a, len, text, awn, col);
   };
   const balcony = (b, side, a, fl) => {
     const F = onFace(b, side), y = fl * 3.2 + 0.55;
@@ -1582,6 +1602,100 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
     put(facadeGeo(11, h, 14), FAC[(k + (s + side + 2)) % 4], side * 13, h / 2, s * t);
     put(facadeGeo(14, h, 11), FAC[(k + 1 + (s + side + 2)) % 4], s * t, h / 2, side * 13);
   }
+
+  // ---- enterable buildings: a hollow ground floor shut behind roller shutters until you pay for it.
+  // Doors let everyone through; windows have a sill that only zombies (and a jumping player) get over.
+  B.houses = [];
+  const SIDES = { S: [0, 4], N: [Math.PI, 5], E: [Math.PI / 2, 0], W: [-Math.PI / 2, 1] };   // yaw, box face looking outward
+  const tiled = (w, d, tile) => {
+    const geo = new THREE.PlaneGeometry(w, d), pos = geo.attributes.position, uv = geo.attributes.uv;
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / tile, pos.getY(i) / tile);
+    return geo;
+  };
+  const house = (b, { name, cost, H = 3.2, ext, int, floor, roof, ops, lights }) => {
+    // openings are 3 m high: enemy collisions reach 2.9 m
+    const T = 0.3, TOP = 3, x0 = b.x - b.w / 2, x1 = b.x + b.w / 2, z0 = b.z - b.d / 2, z1 = b.z + b.d / 2;
+    const h = { name, cost, open: false, t: 0, shutters: [], doors: [], lights: [], fill: new THREE.Box3(new V3(x0, 0, z0), new V3(x1, TOP, z1)) };
+    const at = (side, a, out = 0) => side === 'S' ? [b.x + a, z1 + out] : side === 'N' ? [b.x - a, z0 - out] : side === 'E' ? [x1 + out, b.z - a] : [x0 - out, b.z + a];
+    const piece = (side, a0, a1, y0, y1) => {
+      if (a1 - a0 < 0.02 || y1 - y0 < 0.02) return;
+      const ns = side === 'S' || side === 'N', len = a1 - a0;
+      const mm = Array(6).fill(ext); mm[SIDES[side][1] ^ 1] = int;
+      const m = new THREE.Mesh(boxUV(new THREE.BoxGeometry(ns ? len : T, y1 - y0, ns ? T : len), 3, (y0 + y1) / 2), mm);
+      const [px, pz] = at(side, (a0 + a1) / 2, -T / 2);
+      m.position.set(px, (y0 + y1) / 2, pz); addSolid(m);
+    };
+    const tag = signMat(`APRI · ${cost}`, '#ff6a5a');
+    for (const side of 'SNEW') {
+      const L = faceLen(b, side), end = L / 2 - (side === 'E' || side === 'W' ? T : 0), F = onFace(b, side);
+      let a = -end;
+      for (const [, c, w, kind] of ops.filter(o => o[0] === side).sort((p, q) => p[1] - q[1])) {
+        const sill = kind === 'win' ? 1 : 0;
+        piece(side, a, c - w / 2, 0, H); piece(side, c - w / 2, c + w / 2, TOP, H); piece(side, c - w / 2, c + w / 2, 0, sill);
+        if (sill) F(new THREE.BoxGeometry(w + 0.2, 0.08, T + 0.24), CM.stone, c, sill + 0.04, -T / 2);
+        for (const s of [-1, 1]) F(new THREE.BoxGeometry(0.1, TOP - sill, T + 0.08), mats.trim, c + s * (w / 2 - 0.05), (TOP + sill) / 2, -T / 2);
+        F(new THREE.BoxGeometry(w, 0.1, T + 0.08), mats.trim, c, TOP - 0.05, -T / 2);
+        F(new THREE.BoxGeometry(w + 0.1, 0.24, 0.2), CM.shutter, c, TOP + 0.1, 0.1);
+        // roller shutter hanging from the lintel: it rolls up when the building is bought
+        const sw = w - 0.2, sh = TOP - sill - 0.1, geo = new THREE.BoxGeometry(sw, sh, 0.06).translate(0, -sh / 2, 0), uv = geo.attributes.uv;
+        for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * sw, uv.getY(i) * sh * 1.6);
+        const m = new THREE.Mesh(geo, CM.roller), [sx, sz] = at(side, c, -0.1);
+        m.position.set(sx, TOP - 0.1, sz); m.rotation.y = SIDES[side][0]; m.castShadow = m.receiveShadow = true;
+        if (!sill) {
+          const lbl = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 0.44), tag); lbl.position.set(0, -1.15, 0.04); m.add(lbl);
+          h.doors.push(at(side, c, 0.5));
+        }
+        B.root.add(m); m.updateMatrixWorld(true); B.meshes.push(m); h.shutters.push(m);
+        a = c + w / 2;
+      }
+      piece(side, a, end, 0, H);
+    }
+    put(tiled(b.w - 2 * T, b.d - 2 * T, 3).rotateX(-Math.PI / 2), floor, b.x, 0.085, b.z);
+    if (roof) {
+      const [top, mat] = roof, m = new THREE.Mesh(boxUV(new THREE.BoxGeometry(b.w, top - H, b.d), 4, (top + H) / 2), [mat, mat, CM.roofing, CM.ceil, mat, mat]);
+      m.position.set(b.x, (top + H) / 2, b.z); addSolid(m);
+    } else {
+      put(new THREE.PlaneGeometry(b.w - 2 * T, b.d - 2 * T).rotateX(Math.PI / 2), CM.ceil, b.x, H - 0.01, b.z);
+      for (const s of [-1, 1]) { put(new THREE.BoxGeometry(b.w + 0.16, 0.22, 0.14), CM.cornice, b.x, H, b.z + s * (b.d / 2 + 0.02)); put(new THREE.BoxGeometry(0.14, 0.22, b.d + 0.16), CM.cornice, b.x + s * (b.w / 2 + 0.02), H, b.z); }
+    }
+    for (const [lx, lz] of lights) {
+      put(new THREE.BoxGeometry(1.5, 0.06, 0.34), mats.trim, lx, H - 0.04, lz); put(new THREE.PlaneGeometry(1.4, 0.24).rotateX(Math.PI / 2), decoMats.lamp, lx, H - 0.075, lz);
+      const l = new THREE.PointLight(0xffe6c4, 0, 14, 1.6); l.position.set(lx, H - 0.5, lz); B.root.add(l); h.lights.push(l);
+    }
+    B.boxes.push(h.fill); B.houses.push(h);
+    return h;
+  };
+  // shop furniture
+  const stock = [...CM.paints, CM.cornice, CM.awnY, CM.awnR, CM.awnB];
+  // shelving along x or z: a steel core with rows of stock on the open sides (-1 / +1 across the run)
+  const shelf = (x, z, len, alongX, h = 1.7, sides = [-1, 1]) => {
+    const P = (t, o) => alongX ? [x + t, z + o] : [x + o, z + t], G = (l, hh, dd) => new THREE.BoxGeometry(alongX ? l : dd, hh, alongX ? dd : l);
+    addBox(x, z, alongX ? len : 0.3, h, alongX ? 0.3 : len, CM.rack, 0, { r: 0.02, tile: 0 });
+    const lo = sides.includes(-1) ? 0.39 : 0.17, hi = sides.includes(1) ? 0.39 : 0.17;
+    B.boxes.push(new THREE.Box3(new V3(x - (alongX ? len / 2 : lo), 0, z - (alongX ? lo : len / 2)), new V3(x + (alongX ? len / 2 : hi), h, z + (alongX ? hi : len / 2))));
+    put(G(len + 0.04, 0.05, 0.8), CM.rack, x, h + 0.02, z);
+    for (const s of sides) for (let y = 0.3; y < h - 0.3; y += 0.48) {
+      const [bx, bz] = P(0, s * 0.27); put(G(len, 0.03, 0.24), CM.cornice, bx, y, bz);
+      for (let t = -len / 2 + 0.08; t < len / 2 - 0.3;) {
+        const w = rand(0.14, 0.32), hh = rand(0.16, 0.34), [px, pz] = P(t + w / 2, s * 0.27);
+        if (Math.random() < 0.85) put(G(w, hh, 0.18), stock[(Math.random() * stock.length) | 0], px, y + 0.015 + hh / 2, pz);
+        t += w + rand(0.02, 0.1);
+      }
+    }
+  };
+  // glass-fronted fridge against a wall, `face` is the way the doors look
+  const fridge = (x, z, len, face) => {
+    const ns = face === 'N' || face === 'S', k = { x, z, w: ns ? len : 0.75, d: ns ? 0.75 : len }, F = onFace(k, face);
+    addBox(x, z, k.w, 2.1, k.d, mats.trim, 0, { r: 0.03, tile: 0 });
+    F(new THREE.PlaneGeometry(len - 0.2, 1.6), CITY.glass, 0, 1.15, 0.012);
+    for (let t = -len / 2 + 0.1; t <= len / 2 - 0.09; t += (len - 0.2) / Math.max(1, Math.round(len / 1.1))) F(new THREE.BoxGeometry(0.06, 1.6, 0.05), CM.rack, t, 1.15, 0.03);
+    F(new THREE.BoxGeometry(len - 0.2, 0.05, 0.04), decoMats.lamp, 0, 2, 0.02);
+  };
+  const counter = (x, z, w, d, top = CM.stone) => {
+    addBox(x, z, w, 1, d, CM.wood, 0, { r: 0.03, tile: 0 });
+    put(new THREE.BoxGeometry(w + 0.12, 0.06, d + 0.12), top, x, 1.03, z);
+    put(new THREE.BoxGeometry(0.42, 0.26, 0.36), mats.trim, x, 1.19, z + (d > w ? d / 2 - 0.5 : 0)); put(new THREE.BoxGeometry(0.3, 0.2, 0.02), decoMats.screen, x, 1.42, z + (d > w ? d / 2 - 0.5 : 0));
+  };
 
   // ---- props
   // quarter-turn helper: local (lx, lz) -> world, plus a box whose footprint swaps on odd turns
@@ -1694,17 +1808,30 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
   car(17, -2.4, 3, CM.paints[5]); car(30, 2.5, 1, CM.paints[4]);
 
   // ---- north-west: two apartment blocks, back alleys, a newsstand and the bus stop
-  const A = bld(-29, -26, 10, 12.8, 18, FAC[0]), Bb = bld(-16.5, -28.5, 9, 9.6, 13, FAC[1]);
-  shop(A, 'S', 0, 8, 'ALIMENTARI', CM.awnG, '#8dffb0');
-  shop(Bb, 'E', 0, 9, 'FARMACIA', null, '#5dff8a');
-  shop(Bb, 'S', 0, 6, 'TABACCHI', CM.awnB, '#ffd45a');
+  const A = bld(-29, -26, 10, 12.8, 18, FAC[0], 3.2), Bb = bld(-16.5, -28.5, 9, 9.6, 13, FAC[1], 3.2);
+  front(A, 'S', 0, 8, 'ALIMENTARI', CM.awnG, '#8dffb0');
+  front(Bb, 'E', 0, 9, 'FARMACIA', null, '#5dff8a');
+  front(Bb, 'S', 0, 6, 'TABACCHI', CM.awnB, '#ffd45a');
+  // grocer: front door and window on the street, back door on the alley, a window on each side
+  house(A, { name: 'ALIMENTARI', cost: 3500, ext: CM.extA, int: CM.plaster, floor: CM.floorTile, lights: [[-29, -21.5], [-29, -30.5]],
+    ops: [['S', 2, 2.6, 'door'], ['S', -2, 2.6, 'win'], ['N', 2, 2.6, 'door'], ['E', 2, 2.6, 'win'], ['W', 4, 2.6, 'win']] });
+  shelf(-31, -28.5, 7, false); shelf(-28, -28.5, 7, false); shelf(-33.5, -29, 8, false, 2.1, [1]);
+  fridge(-27, -34.32, 4.6, 'S'); counter(-25.3, -21.5, 1, 3.2);
+  for (const [x, z] of [[-31.6, -19.3], [-30.3, -19.3], [-33, -19.6]]) {
+    addBox(x, z, 1.1, 0.55, 0.8, mats.crate, 0, { r: 0.04, tile: 0 });
+    for (let i = 0; i < 9; i++) put(new THREE.IcosahedronGeometry(0.1, 1), stock[(x * 3 + i) & 1 ? 0 : 5], x - 0.36 + (i % 3) * 0.36, 0.62, z - 0.22 + ((i / 3) | 0) * 0.22);
+  }
+  // pharmacy with the tobacconist's door round the corner
+  house(Bb, { name: 'FARMACIA', cost: 3000, ext: CM.extB, int: CM.tileW, floor: CM.floorShop, lights: [[-16.5, -28.5]],
+    ops: [['E', -0.5, 2.6, 'door'], ['E', 3.5, 2.6, 'win'], ['E', -4.5, 2.6, 'win'], ['S', -0.5, 2.6, 'door'], ['W', -1.5, 2.6, 'win']] });
+  counter(-18.5, -30, 0.7, 7, CM.cornice);
+  shelf(-20.52, -33, 3, false, 2.2, [1]); shelf(-20.52, -27.2, 2.4, false, 2.2, [1]); shelf(-15.6, -34.3, 5.6, true, 2.2, [1]); shelf(-15, -25.3, 2, true, 1.25);
+  put(new THREE.BoxGeometry(0.9, 0.3, 0.06), CM.neonG, -20.66, 2.55, -24.2, Math.PI / 2); put(new THREE.BoxGeometry(0.3, 0.9, 0.06), CM.neonG, -20.66, 2.55, -24.2, Math.PI / 2);
   dress(A, 'S'); dress(A, 'E', 2); dress(Bb, 'E'); dress(Bb, 'S'); dress(Bb, 'W', 2);
   {
     const F = onFace(Bb, 'E');   // pharmacy cross
     F(new THREE.BoxGeometry(0.9, 0.3, 0.1), mats.neonBlue, 3.2, 5.2, 0.5); F(new THREE.BoxGeometry(0.3, 0.9, 0.1), mats.neonBlue, 3.2, 5.2, 0.5); F(new THREE.BoxGeometry(0.08, 0.08, 0.5), mats.trim, 3.2, 5.2, 0.25);
-    for (const [b, side, a] of [[A, 'N', -3], [A, 'N', 2], [A, 'W', 4], [A, 'W', -5], [Bb, 'N', 1], [A, 'E', 5]]) {
-      const G = onFace(b, side); G(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, a, 2.7, 0.2); G(new THREE.BoxGeometry(1.1, 2.2, 0.08), CM.door, a + 2, 1.1, 0.03);
-    }
+    for (const [b, side, a] of [[A, 'N', -3], [A, 'W', -5], [A, 'W', 0.5], [Bb, 'N', 1], [A, 'E', 6]]) onFace(b, side)(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, a, 3.9, 0.2);
     for (const [b, side] of [[A, 'E'], [Bb, 'W'], [A, 'N'], [A, 'W']]) { const G = onFace(b, side); G(new THREE.BoxGeometry(0.34, 0.14, 0.3), mats.trim, 0, 3.5, 0.15); G(new THREE.PlaneGeometry(0.26, 0.22).rotateX(Math.PI / 2), decoMats.lamp, 0, 3.42, 0.17); }
   }
   dumpster(-29, -38.55, 0); dumpster(-26.6, -38.55, 0); dumpster(-38.55, -29, 1); dumpster(-38.55, -20, 1);
@@ -1755,12 +1882,21 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
   car(-14, 32, 1, CM.paints[2], 'van');
   {
     const g = { x: -32, z: 33, w: 12, h: 3.4, d: 12 };
-    addBox(g.x, g.z, g.w, g.h, g.d, CM.brick, 0, { r: 0.05, tile: 4 });
+    // mechanic's garage: both roller doors on the car park and a side door
+    house(g, { name: 'OFFICINA', cost: 2000, H: 3, ext: CM.brick, int: CM.wallGrey, floor: CM.floorGarage, roof: [g.h, CM.brick], lights: [[-32, 33]],
+      ops: [['E', 3, 3.6, 'door'], ['E', -3, 3.6, 'door'], ['N', 3, 2.6, 'door']] });
+    car(-31.5, 30, 1, CM.paints[1]);
+    addBox(-37.1, 35, 1.1, 0.95, 5, CM.rack, 0, { r: 0.03, tile: 0 }); put(new THREE.BoxGeometry(1.2, 0.07, 5.1), CM.wood, -37.1, 0.98, 35);
+    put(new THREE.BoxGeometry(0.06, 1.2, 4.4), mats.trim, -37.66, 1.9, 35);
+    for (let i = 0; i < 9; i++) put(new THREE.BoxGeometry(0.04, rand(0.25, 0.6), 0.07), i % 3 ? mats.pillar : CM.awnR, -37.6, 1.9 + rand(-0.2, 0.2), 33.1 + i * 0.47);
+    put(new THREE.BoxGeometry(0.4, 0.3, 0.5), CM.awnR, -37.1, 1.17, 33.4); put(new THREE.BoxGeometry(0.3, 0.24, 0.3), mats.pillar, -37.2, 1.14, 36.6);
+    shelf(-31.5, 38.3, 6, true, 2.1, [-1]);
+    for (const z of [34.7, 37.3]) { addBox(-33.5, z, 0.3, 2.5, 0.3, CM.awnY, 0, { r: 0.03, tile: 0 }); put(new THREE.BoxGeometry(4.2, 0.12, 0.5), CM.awnY, -33.5, 0.16, z + (z < 36 ? 0.75 : -0.75)); }
+    for (const [x, z] of [[-36.9, 28.2], [-27, 33]]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.1, 18), x < -30 ? CM.tire : barrelMats[0]); t.position.set(x, 0.55, z); addSolid(t); }
     for (const s of [-1, 1]) { put(new THREE.BoxGeometry(12.3, 0.4, 0.3), CM.cornice, g.x, 3.5, g.z + s * 6); put(new THREE.BoxGeometry(0.3, 0.4, 12.3), CM.cornice, g.x + s * 6, 3.5, g.z); }
     const F = onFace(g, 'E');
-    for (const a of [-2.8, 2.8]) { F(new THREE.BoxGeometry(3.8, 2.6, 0.1), CM.shutter, a, 1.3, 0.03); for (let y = 0.3; y < 2.6; y += 0.3) F(new THREE.BoxGeometry(3.8, 0.03, 0.03), mats.trim, a, y, 0.09); }
-    F(new THREE.BoxGeometry(4.6, 0.6, 0.1), mats.trim, 0, 3.02, 0.04); F(new THREE.PlaneGeometry(2.3, 0.56), signMat('OFFICINA', '#ffb36b'), 0, 3.02, 0.1);
-    const N = onFace(g, 'N'); N(new THREE.BoxGeometry(1.1, 2.2, 0.08), CM.door, 3, 1.1, 0.03); N(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, -2, 2.4, 0.2);
+    F(new THREE.BoxGeometry(2.2, 0.38, 0.1), mats.trim, 0, 3.2, 0.04); F(new THREE.PlaneGeometry(2, 0.34), signMat('OFFICINA', '#ffb36b'), 0, 3.2, 0.1);
+    onFace(g, 'N')(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, -2, 2.4, 0.2);
     for (const [x, z] of [[-24.9, 26.8], [-24.2, 27.4], [-24.9, 39]]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.9, 16), CM.tire); t.position.set(x, 0.45, z); addSolid(t); }
     addBox(-28.5, 25.6, 1.2, 1.2, 1.2, mats.crate, 0, { r: 0.06, tile: 0 });
   }
@@ -1788,12 +1924,14 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
   }
   {
     const m = { x: 29, z: 35.5, w: 14, h: 3.6, d: 7 };
-    addBox(m.x, m.z, m.w, m.h - 0.04, m.d, CM.canopy, 0.04, { r: 0.05, tile: 0 });
+    // mini-market: glass front on the forecourt, side door toward the fence
+    house(m, { name: 'MARKET 24H', cost: 2500, H: 3, ext: CM.canopy, int: CM.tileW, floor: CM.floorShop, roof: [m.h, CM.canopy], lights: [[29, 35.5]],
+      ops: [['N', 0, 2.6, 'door'], ['N', 4, 2.6, 'win'], ['N', -4, 2.6, 'win'], ['E', -0.5, 2.6, 'door']] });
+    fridge(27.5, 38.32, 10, 'N'); shelf(25.2, 35.4, 3.6, true); shelf(32, 35.4, 3, true); shelf(22.7, 35.2, 4.4, false, 2.1, [1]);
+    counter(34.9, 33.5, 1, 2);
     for (const s of [-1, 1]) { put(new THREE.BoxGeometry(14.3, 0.4, 0.3), mats.trim, m.x, 3.7, m.z + s * 3.5); put(new THREE.BoxGeometry(0.3, 0.4, 7.3), mats.trim, m.x + s * 7, 3.7, m.z); }
-    shop(m, 'N', 0, 11, 'MARKET 24H', null, '#7fd0ff');
-    const F = onFace(m, 'N');
-    F(new THREE.BoxGeometry(1.8, 1, 0.8), CM.canopy, 6, 0.55, 0.45); F(new THREE.BoxGeometry(1.2, 1.5, 0.7), CM.shutter, -6.2, 0.8, 0.4);
-    onFace(m, 'W')(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, 0, 2.6, 0.2);
+    front(m, 'N', 0, 11, 'MARKET 24H', null, '#7fd0ff');
+    onFace(m, 'W')(new THREE.BoxGeometry(0.9, 0.6, 0.4), CM.shutter, 0, 2.3, 0.2);
   }
   // price totem
   addBox(10.5, 10.5, 0.5, 7.2, 0.5, mats.trim, 0, { r: 0.05, tile: 0 });
@@ -1922,12 +2060,13 @@ function applyAtmosphere(m) {
   CITY.signs.forEach(f => f.emissiveIntensity = (night ? 2.2 : 0.9) * Math.max(0.3, L));
   CITY.glass.emissiveIntensity = (night ? 1.3 : 0.22) * L;
   CITY.pool.opacity = night ? 0.5 * Math.min(1, L) : 0; CITY.pool.visible = night;
+  CITY.lightI = (night ? 9 : 13) * (0.4 + 0.6 * Math.min(1, L)); houseLights();
   PU_MATS.health.emissiveIntensity = 1.4 * lightK(); PU_MATS.armor.emissiveIntensity = 1.3 * lightK();
   PU_MATS.healthRing.color.set(0x2dff7a).multiplyScalar(0.6 + 1.9 * L); PU_MATS.armorRing.color.set(0x3aa8ff).multiplyScalar(0.6 + 1.9 * L);
   gradePass.uniforms.tint.value.set(...a.tint);
   bloomPass.strength = a.bloom * L;
   // image-based light would make the night look like day: scale it per mode
-  scene.traverse(o => { if (o.material?.isMeshStandardMaterial) o.material.envMapIntensity = a.env; });
+  scene.traverse(o => { if (o.material) for (const mt of [].concat(o.material)) if (mt.isMeshStandardMaterial) mt.envMapIntensity = a.env; });
   gunScene.traverse(o => { if (o.material?.isMeshStandardMaterial) o.material.envMapIntensity = a.gunEnv; });
   torch.intensity = a.torch * 40 * (0.4 + 0.6 * Math.min(1, L));
   gunLight.intensity = a.torch ? 1.2 : 2.2;
@@ -2103,6 +2242,26 @@ function setMap(key) {
   mapVersion++;
 }
 setMap(store.get('spariaps-map', 'city'));
+// enterable buildings: buying one rolls its shutters up and removes the solid volume that kept everyone out.
+// Navigation is rebuilt in place because enemies hold a reference to the grid they walk on.
+function houseLights() { for (const h of MAPS.city.houses) for (const l of h.lights) l.intensity = h.open ? CITY.lightI : 0; }
+function setHouse(h, open) {
+  h.open = open; h.t = open ? 1 : 0;
+  for (const [list, items] of [[MAP.meshes, h.shutters], [worldMeshes, h.shutters], [MAP.boxes, [h.fill]], [colliders, [h.fill]]]) for (const it of items) {
+    const i = list.indexOf(it);
+    if (open && i >= 0) list.splice(i, 1); else if (!open && i < 0) list.push(it);
+  }
+  for (const s of h.shutters) { s.visible = true; s.scale.y = 1; s.updateMatrixWorld(true); s.children.forEach(c => c.visible = !open); }
+  MAP.grid.set(buildGrid(0, MAP.boxes)); MAP.climbGrid.set(buildGrid(1.3, MAP.boxes));
+  houseLights(); mapVersion++;
+}
+function updateHouses(dt) {
+  for (const h of MAP.houses || []) {
+    if (h.t <= 0) continue;
+    h.t -= dt * 1.1;
+    for (const s of h.shutters) { s.scale.y = Math.max(0.03, h.t); s.visible = h.t > 0; }
+  }
+}
 
 // ============================================================ audio
 const VOLUME = 0.45;
@@ -5596,6 +5755,7 @@ function drawMinimap() {
     ctx.fillStyle = '#ffd45a'; const bp = box.group.position;
     ctx.fillRect(bp.x - 1, bp.z - 1, 2, 2);
   }
+  for (const h of MAP.houses || []) { ctx.fillStyle = h.open ? '#8dffb0' : '#ff6a5a'; for (const [x, z] of h.doors) ctx.fillRect(x - 0.7, z - 0.7, 1.4, 1.4); }
   if (MAP.bench) { ctx.fillStyle = '#ff9d5c'; ctx.beginPath(); ctx.arc(MAP.bench.x, MAP.bench.z, 1.1, 0, Math.PI * 2); ctx.fill(); }
   if (MAP.perks) { ctx.fillStyle = '#c98bff'; ctx.globalAlpha = waveBreak > 0 ? 1 : 0.45; ctx.beginPath(); ctx.arc(MAP.perks.x, MAP.perks.z, 1.1, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
   ctx.restore();
@@ -5630,6 +5790,7 @@ function interactTarget() {
     if (dd < bd && Math.abs(player.pos.y - d.pos.y) < 1.2) { best = d; bd = dd; }
   }
   if (best) return { type: 'drop', drop: best };
+  if (player.pos.y < 1.5) for (const h of MAP.houses || []) if (!h.open && h.doors.some(([x, z]) => Math.hypot(player.pos.x - x, player.pos.z - z) < 2.1)) return { type: 'house', house: h };
   for (const type of ['bench', 'perks']) if (MAP[type] && Math.hypot(player.pos.x - MAP[type].x, player.pos.z - MAP[type].z) < 2.6 && player.pos.y < 1.5) return { type };
   return null;
 }
@@ -5638,6 +5799,14 @@ function interact() {
   if (!t) return;
   if (t.type === 'drop') return pickupDrop(t.drop);
   if (t.type === 'bench') return openShop('bench');
+  if (t.type === 'house') {
+    const h = t.house;
+    if (cash < h.cost) { sfxTone(220, 0.15, 0.12, 'square', 160); toast('CREDITI INSUFFICIENTI', 'pu', 'coin', '#ff8a7a'); return; }
+    addCash(-h.cost); setHouse(h, true);
+    for (let i = 0; i < 9; i++) sfxTone(95 + (i % 2) * 30, 0.07, 0.1, 'sawtooth', 70, i * 0.09);
+    sfxTone(520, 0.25, 0.1, 'sine', 780, 0.85);
+    toast(`${h.name} · EDIFICIO APERTO`, 'pu', 'coin', '#8dffb0'); return;
+  }
   if (t.type === 'perks') {
     if (waveBreak > 0) return openShop('perks');
     sfxTone(220, 0.15, 0.12, 'square', 160); toast('APERTO SOLO TRA UN’ONDATA E L’ALTRA', 'pu', 'coin', '#c98bff'); return;
@@ -5652,6 +5821,7 @@ function updateInteract() {
   let html = '';
   if (t?.type === 'box' && box.state === 'idle') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Cassa misteriosa · arma casuale</span><span class="price${cash < BOX_COST ? ' no' : ''}">${BOX_COST}</span>`;
   else if (t?.type === 'box') { const r = rarityOf(box.choice); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Prendi <b>${WEAPONS[box.choice].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
+  else if (t?.type === 'house') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Apri <b>${t.house.name}</b> · un posto dove ripararsi</span><span class="price${cash < t.house.cost ? ' no' : ''}">${t.house.cost}</span>`;
   else if (t?.type === 'bench') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Banco armi · potenzia danno, caricatore e ricarica</span>`;
   else if (t?.type === 'perks') html = waveBreak > 0 ? `<kbd>${keyLabel('E', 'X')}</kbd><span>Distributore · compra un perk</span>` : `<span>Distributore di perk · apre tra un’ondata e l’altra</span>`;
   else if (t) { const r = rarityOf(t.drop.key); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Raccogli <b>${WEAPONS[t.drop.key].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
@@ -5876,6 +6046,7 @@ function resetGame() {
   setArena(mode === 'classic');
   D = diffFor(1);
   clearWorld();
+  for (const h of MAP.houses || []) if (h.open) setHouse(h, false);
   resetPickups();
   Object.assign(player, { hp: 100, armor: CLASSES[classKey].armor, yaw: 0, pitch: 0, onGround: true, lastHit: -99, crouch: false, crouchT: 0, landOff: 0, shake: 0, roll: 0, sprintT: 0 });
   player.pos.set(...MAP.start); player.vel.set(0, 0, 0);
@@ -6515,7 +6686,7 @@ renderer.setAnimationLoop(() => {
     updatePlayer(dt);
     withCat('weapons', () => updateWeapon(dt));
     withCat('enemies', () => updateEnemies(dt));
-    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateInteract(); drawMinimap(); }
+    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateHouses(dt); updateInteract(); drawMinimap(); }
     updateFx(dt);
     updateDamageNumbers(dt);
     if (state === 'playing') updateHUD(dt);
