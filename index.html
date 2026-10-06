@@ -77,6 +77,7 @@
   #bossbar .bn #bossHp { color: #fff; }
   #bossbar .bt { position: relative; height: 10px; border-radius: 5px; background: rgba(255,255,255,.08); overflow: hidden; }
   #bossbar .bt i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; }
+  #bossbar .bt::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 32.6%, rgba(8,10,14,.9) 32.6% 33.4%, transparent 33.4% 65.6%, rgba(8,10,14,.9) 65.6% 66.4%, transparent 66.4%); }
   #bossLag { background: rgba(255,255,255,.5); }
   #bossFill { background: linear-gradient(90deg, #ff2a55, #ff8a3d); box-shadow: 0 0 12px rgba(255,60,80,.7); }
   #killfeed { position: absolute; top: 16px; right: 16px; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
@@ -3547,6 +3548,7 @@ class Enemy {
     this.dead = false; this.deathT = 0;
     this.path = []; this.repathT = 0; this.walk = rand(0, 6); this.hurtT = 0; this.nav = grid; this.stunT = 0;
     this.flinch = 0; this.flinchSide = 0; this.deathTwist = rand(-0.4, 0.4);
+    this.phase = 1;
     this.yaw = Math.atan2(player.pos.x - x, player.pos.z - z);
     this.parts = []; this.mats = []; this.flashMats = [];
     this.group = new THREE.Group();
@@ -3613,6 +3615,11 @@ class Enemy {
     this.hp -= amount; this.hurtT = 0.08;
     this.flinch = 1; this.flinchSide = rand(-1, 1);
     this.onHurt?.();
+    // bosses change phase at two thirds and one third of their health
+    if (this.boss && this.hp > 0) {
+      const ph = this.hp > this.maxHp * 0.66 ? 1 : this.hp > this.maxHp * 0.33 ? 2 : 3;
+      if (ph > this.phase) { this.phase = ph; bossPhase(this); }
+    }
     if (this.hp > 0) return false;
     this.hp = 0; this.dead = true;
     this.onDeath?.();
@@ -3823,7 +3830,7 @@ class Bot extends Enemy {
     this.kind = kind; this.aimT = 0;
     this.name = boss ? `COLOSSO Mk.${boss}` : (kind === 'sniper' ? 'Cecchino-' : 'Bot-') + BOT_NAMES[botCounter++ % BOT_NAMES.length];
     this.points = boss ? [1500 * boss, 1500 * boss, 1500 * boss] : kind === 'sniper' ? [150, 220, 260] : [100, 150, 200];
-    this.boss = boss; this.dmgMul = boss ? 0.9 + boss * 0.2 : 1; this.rocketT = 3;
+    this.boss = boss; this.dmgMul = boss ? 0.9 + boss * 0.2 : 1; this.rocketT = 3; this.barrageT = 4;
     this.sparkColor = 0xffaa33;
     this.dropChance = 0.18;
     this.barY = 2.3;
@@ -3918,6 +3925,7 @@ class Bot extends Enemy {
   onHurt() { this.seenT = Math.max(this.seenT, this.reaction * 0.5); }
   onDeathPose(fall) { this.rig.rotation.x = fall * 0.9; this.flash.visible = false; if (this.laser) this.laser.visible = false; }
   remove() { super.remove(); if (this.laser) { scene.remove(this.laser); this.laser.material.dispose(); } }
+  onPhase() { this.glowMat.emissive.set(this.phase === 2 ? 0xffa020 : 0xffffff); }
   // sniper: one heavy round after the laser has been on you; moving (or breaking the line) is how you dodge it
   fireSniper(dist) {
     this.group.updateMatrixWorld();
@@ -4006,14 +4014,16 @@ class Bot extends Enemy {
         } else this.laser.visible = false;
       } else if (this.seenT > this.reaction && this.fireCD <= 0) {
         this.fire(dist);
-        this.fireCD = rand(0.4, 0.9) * this.fireRate * (this.boss ? 0.8 : 1);
+        this.fireCD = rand(0.4, 0.9) * this.fireRate * (this.boss ? 0.8 / (1 + 0.3 * (this.phase - 1)) : 1);
       }
       // boss: rocket volleys you have to dodge
       if (this.boss && this.seenT > this.reaction && (this.rocketT -= dt) <= 0) {
         this.rocketT = Math.max(2, 4.6 - this.boss * 0.4);
         this.group.updateMatrixWorld();
         const m = this.rig.localToWorld(RIG_MUZZLE.clone());
-        launchProjectile('erocket', m, playerEye().add(new V3(0, -0.5, 0)).sub(m).normalize().multiplyScalar(19 + this.boss));
+        // one rocket per phase, fanned out
+        const aim = playerEye().add(new V3(0, -0.5, 0)).sub(m).normalize();
+        for (let i = 0; i < this.phase; i++) launchProjectile('erocket', m, aim.clone().applyAxisAngle(_yAxis, (i - (this.phase - 1) / 2) * 0.14).multiplyScalar(19 + this.boss));
         sfxRocketLaunch();
       }
     } else {
@@ -4021,6 +4031,18 @@ class Bot extends Enemy {
       this.fireCD = Math.max(this.fireCD, 0.3);
       if (this.laser) { this.laser.visible = false; this.aimT = Math.min(this.aimT, 0); }
     }
+    // boss, from phase 2: mortar barrage on your position (even behind cover) — get out of the red circles
+    if (this.boss && this.phase >= 2 && (this.barrageT -= dt) <= 0) {
+      this.barrageT = this.phase === 3 ? 5 : 7.5;
+      const n = 3 + this.phase;
+      for (let i = 0; i < n; i++) {
+        const a = rand(0, 6.28), r = i ? rand(2.5, 7) : 0;
+        const hp = new V3(clamp(player.pos.x + Math.cos(a) * r, -38, 38), groundAt(player.pos.x, player.pos.z, player.pos.y, 0.4), clamp(player.pos.z + Math.sin(a) * r, -38, 38));
+        addHazard(hp, 3.2, 1.2 + i * 0.16, () => enemyBlast(hp.clone().setY(hp.y + 0.4)));
+      }
+      withCat('enemies', () => { sfxTone(90, 0.5, 0.3, 'sawtooth', 40); sfxTone(1400, 0.9, 0.05, 'sine', 500, 0.2); });
+    }
+    if (this.boss && this.phase === 3) speed *= 1.15;
     if (faceYaw === undefined && move.lengthSq() > 0) faceYaw = Math.atan2(move.x, move.z);
     if (faceYaw !== undefined) this.turnTo(faceYaw, dt);
     this.moveAndCollide(move, speed, dt, this.boss ? 0.6 : 0.42);
@@ -4172,6 +4194,7 @@ class Zombie extends Enemy {
     const baseHp = kind === 'armored' ? 190 : kind === 'bomber' ? 60 : kind === 'spitter' ? 85 : climber ? 110 : runner ? 70 : 100;
     super(x, z, Math.round((boss ? 1800 + 1100 * (boss - 1) : baseHp * (1 + (wave - 1) * 0.06)) * D.hp));
     this.kind = kind; this.fuseT = 0; this.spitCD = rand(1, 2.5); this.spitT = 0; this.losT = 0; this.hasLOS = false;
+    this.slamT = 0; this.slamCD = 3; this.volleyCD = 3;
     this.runner = runner; this.climber = climber; this.climbing = false;
     this.boss = boss; this.reach = boss ? 2.3 : 1.3; this.chargeT = 5; this.charging = 0;
     this.name = boss ? `ABOMINIO Lv.${boss}` : kind ? { bomber: 'Zombie esplosivo', armored: 'Zombie corazzato', spitter: 'Zombie sputatore' }[kind] : climber ? 'Zombie arrampicatore' : runner ? 'Zombie corridore' : 'Zombie';
@@ -4290,11 +4313,27 @@ class Zombie extends Enemy {
     const body = player.pos.clone().setY(player.pos.y + 0.9), pd = body.distanceTo(p);
     if (pd < 4.5 && worldClear(p, body)) damagePlayer(38 * (1 - pd / 4.5 * 0.7), p);
   }
-  spit() {
-    const m = this.pos.clone().setY(this.pos.y + 1.55).add(new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)).multiplyScalar(0.3));
+  onPhase() { this.eyesMat.emissive.set(this.phase === 2 ? 0xff7a1a : 0xffffff); this.speed *= 1.12; }
+  // boss slam: a shockwave along the ground — be in the air when it lands
+  slam() {
+    const p = this.pos.clone().setY(this.pos.y + 0.12), R = 8.5;
+    addWave(p, R, 0.45);
+    spawnParticles(p, 0x8a7a60, 40, new V3(0, 1, 0), 8, false);
+    for (let i = 0; i < 8; i++) spawnSmoke(p.clone().add(new V3(Math.cos(i * 0.785) * 2.5, 0.3, Math.sin(i * 0.785) * 2.5)), 0x5a5048, 2.4);
+    const d = Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+    sfxBoom(clamp(1.2 - d / 40, 0.3, 1.1), panOf(this.pos), clamp(d / 40, 0, 1));
+    player.shake = Math.max(player.shake, clamp(1.2 - d / 16, 0, 1));
+    if (d < R && player.onGround && Math.abs(player.pos.y - this.pos.y) < 1.2) {
+      damagePlayer(22 + 6 * this.boss, this.pos);
+      player.vel.add(new V3(player.pos.x - this.pos.x, 0, player.pos.z - this.pos.z).normalize().multiplyScalar(7)).setY(6); player.onGround = false;
+    }
+  }
+  spit(spread = 0) {
+    const k = this.group.scale.y;
+    const m = this.pos.clone().setY(this.pos.y + 1.55 * k).add(new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)).multiplyScalar(0.3 * k));
     const d = playerEye().add(new V3(0, -0.4, 0)).sub(m), T = Math.max(0.25, Math.hypot(d.x, d.z) / 17);
     // lobbed with a little lead: keep moving and it lands behind you
-    launchProjectile('acid', m, new V3((d.x + player.vel.x * T * 0.6) / T, d.y / T + 4.5 * T, (d.z + player.vel.z * T * 0.6) / T));
+    launchProjectile('acid', m, new V3((d.x + player.vel.x * T * 0.6) / T, d.y / T + 4.5 * T, (d.z + player.vel.z * T * 0.6) / T).applyAxisAngle(_yAxis, spread));
     const dist = playerEye().distanceTo(m);
     sfxSwoosh(clamp(0.5 - dist / 60, 0.08, 0.4)); sfxGroan(clamp(0.8 - dist / 40, 0.1, 0.6), panOf(this.pos), 'attack');
   }
@@ -4354,6 +4393,19 @@ class Zombie extends Enemy {
         sfxGroan(1, panOf(this.pos), 'attack'); player.shake = Math.max(player.shake, 0.4);
       }
       if (this.charging > 0) speed *= 2.3;
+      if (this.phase >= 2) {
+        // ground slam: rears up for a moment, then the shockwave
+        if (this.slamT > 0) { move.set(0, 0, 0); if ((this.slamT -= dt) <= 0) this.slam(); }
+        else if ((this.slamCD -= dt) <= 0 && dh < 9 && this.attackT <= 0) {
+          this.slamCD = this.phase === 3 ? 5 : 7.5; this.slamT = 0.9; this.charging = 0;
+          sfxGroan(1, panOf(this.pos), 'attack');
+        }
+        // acid volley when you keep away
+        if ((this.volleyCD -= dt) <= 0 && dh > 10 && dh < 32 && this.slamT <= 0) {
+          this.volleyCD = this.phase === 3 ? 4.5 : 6.5;
+          for (let i = -1; i <= 1; i++) this.spit(i * 0.2);
+        }
+      }
     }
     this.turnTo(dh < 5 || this.attackT > 0 || hold ? Math.atan2(dx, dz) : move.lengthSq() > 0 ? Math.atan2(move.x, move.z) : this.yaw, dt, this.runner ? 9 : 5);
     this.moveAndCollide(move, speed, dt, this.boss ? 0.6 : 0.38, direct);
@@ -4387,7 +4439,8 @@ class Zombie extends Enemy {
     }
     this.arms.forEach((a, i) => {
       const ph = this.walk + i * Math.PI;
-      if (swing !== null) { a.sh.rotation.x = swing + i * 0.15; a.el.rotation.x = -0.15; }
+      if (this.slamT > 0) { a.sh.rotation.x = -3 + (0.9 - this.slamT) * 0.4; a.el.rotation.x = -0.1; }
+      else if (swing !== null) { a.sh.rotation.x = swing + i * 0.15; a.el.rotation.x = -0.15; }
       else if (this.climbing) { a.sh.rotation.x = -2.75 + Math.sin(now * 9 + i * Math.PI) * 0.45; a.el.rotation.x = -0.5 - Math.max(0, Math.sin(now * 9 + i * Math.PI)) * 0.6; }
       else if (this.runner) { a.sh.rotation.x = -0.5 + Math.sin(ph) * 0.9 * amt; a.el.rotation.x = -1.1; }
       else { a.sh.rotation.x = -1.35 + Math.sin(now * 1.7 + i * 1.3) * 0.12 + Math.sin(ph) * 0.1 * amt; a.el.rotation.x = -0.25; }
@@ -4425,7 +4478,59 @@ function spawnEnemy() {
   enemies.push(e);
 }
 
+// ---------------------------------------------------------------- boss phases: warnings on the ground, shockwaves, reinforcements
+const hazards = [], spawnQueue = [];
+const hazRing = new THREE.RingGeometry(0.9, 1, 56).rotateX(-Math.PI / 2), hazDisc = new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2);
+const hazMat = (o, glow = true) => new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.12, 0.06).multiplyScalar(glow ? 1.6 : 0.8), transparent: true, opacity: o, blending: glow ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false, toneMapped: !glow, side: THREE.DoubleSide });
+// red circle that fills up, then calls onFire
+function addHazard(pos, radius, delay, onFire) {
+  const g = new THREE.Group(); g.position.copy(pos).setY(pos.y + 0.06);
+  const ring = new THREE.Mesh(hazRing, hazMat(0.9)), disc = new THREE.Mesh(hazDisc, hazMat(0.22, false));
+  ring.scale.setScalar(radius); disc.scale.setScalar(0.01); g.add(ring, disc); scene.add(g);
+  hazards.push({ g, ring, disc, radius, t: delay, max: delay, onFire });
+}
+// expanding shockwave ring (visual only)
+function addWave(pos, radius, dur) {
+  const g = new THREE.Group(); g.position.copy(pos);
+  const ring = new THREE.Mesh(hazRing, hazMat(0.9)); ring.material.color.setRGB(1.6, 1.4, 1); g.add(ring); scene.add(g);
+  hazards.push({ g, ring, radius, t: dur, max: dur, wave: true });
+}
+function updateHazards(dt) {
+  for (let i = hazards.length - 1; i >= 0; i--) {
+    const h = hazards[i], k = 1 - (h.t -= dt) / h.max;
+    if (h.wave) { h.ring.scale.setScalar(Math.max(0.01, h.radius * k)); h.ring.material.opacity = 0.9 * (1 - k); }
+    else { h.disc.scale.setScalar(Math.max(0.01, h.radius * k)); h.ring.material.opacity = 0.6 + 0.4 * Math.sin(now * 22); }
+    if (h.t > 0) continue;
+    h.onFire?.();
+    scene.remove(h.g); h.g.children.forEach(m => m.material.dispose()); hazards.splice(i, 1);
+  }
+}
+function clearHazards() { hazards.forEach(h => { scene.remove(h.g); h.g.children.forEach(m => m.material.dispose()); }); hazards.length = 0; spawnQueue.length = 0; }
+function bossPhase(b) {
+  const z = b instanceof Zombie;
+  showBanner(`${b.name} · FASE ${b.phase}`, b.phase === 2
+    ? (z ? 'COLPO A TERRA E ACIDO · SALTA PER SCHIVARE L’ONDA' : 'BOMBARDAMENTO · ESCI DAI CERCHI ROSSI')
+    : (z ? 'FURIA · ARRIVA L’ORDA' : 'FURIA · ARRIVANO I RINFORZI'));
+  withCat('enemies', sfxBossHorn);
+  player.shake = Math.max(player.shake, 0.8);
+  const p = b.pos.clone().setY(b.pos.y + 1.5);
+  spawnParticles(p, b.sparkColor, 50, new V3(0, 1, 0), 9); spawnFlash(p, 0xffc070, 8, 0.3);
+  addWave(b.pos.clone().setY(b.pos.y + 0.12), 7, 0.5);
+  b.stunT = Math.max(b.stunT, 1.1);   // staggers for a moment: a window to reload or back off
+  b.onPhase?.();
+  // reinforcements: a couple at phase 2, a pack at phase 3
+  spawnQueue.push({ b, n: b.phase === 2 ? 2 : 3 + Math.min(2, b.boss) });
+}
 function updateEnemies(dt) {
+  updateHazards(dt);
+  for (const q of spawnQueue.splice(0)) {
+    for (let i = 0, t = 0; i < q.n && t < 60; t++) {
+      const a = rand(0, 6.28), r = rand(3, 8), x = q.b.pos.x + Math.cos(a) * r, z = q.b.pos.z + Math.sin(a) * r;
+      if (Math.abs(x) > 38 || Math.abs(z) > 38 || blockedAt(x, z)) continue;
+      enemies.push(q.b instanceof Zombie ? new Zombie(x, z, wave, 0) : new Bot(x, z, wave, 0));
+      waveTotal++; i++;
+    }
+  }
   enemies = enemies.filter(b => {
     const keep = b.update(dt);
     if (!keep) b.remove();
@@ -5661,7 +5766,7 @@ function updateHUD(dt) {
   $('bossbar').classList.toggle('on', !!boss);
   if (boss) {
     boss.barLag = Math.max(boss.hp, (boss.barLag ?? boss.maxHp) - boss.maxHp * 0.25 * dt);
-    $('bossName').textContent = boss.name; $('bossHp').textContent = Math.ceil(boss.hp);
+    $('bossName').textContent = boss.name + (boss.phase > 1 ? ` · FASE ${boss.phase}` : ''); $('bossHp').textContent = Math.ceil(boss.hp);
     $('bossFill').style.width = (boss.hp / boss.maxHp * 100) + '%'; $('bossLag').style.width = (boss.barLag / boss.maxHp * 100) + '%';
   }
   hud$.wave.textContent = wave;
@@ -5738,7 +5843,7 @@ function clearWorld() {
   [...particles, ...tracers, ...decals, ...smokes].forEach(m => scene.remove(m));
   particles.length = tracers.length = decals.length = smokes.length = 0;
   dmgNums.forEach(d => d.el.remove()); dmgNums.length = 0;
-  clearThrowables(); clearBlastFx();
+  clearThrowables(); clearBlastFx(); clearHazards();
   while (drops.length) removeDrop(drops[0]);
   $('prompt').classList.remove('on'); promptKey = '';
 }
