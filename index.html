@@ -2755,7 +2755,7 @@ const WEAPONS = {
     name: 'PISTOLA', cues: 'pistol', auto: false, rate: 0.14, magSize: 12, reload: 1.2,
     dmg: { head: 100, body: 45, limb: 32 }, hip: 0.012, ads: 0.001, move: 0.02, bloom: 0.012,
     recoil: 0.032, climb: 0.009, fov: 60, vol: 0.8, snd: SND.pistol, speed: 1.05, shake: 0.1, kickRot: 0.18, kickBack: 0.04,
-    hipPos: new V3(0.13, -0.14, -0.4), adsPos: new V3(0, -0.0675, -0.36), ...buildPistol(),
+    hipPos: new V3(0.13, -0.14, -0.4), adsPos: new V3(0, -0.0675, -0.36), hipYaw: 0.1, ...buildPistol(),
   },
   shotgun: {
     name: 'FUCILE A POMPA', cues: 'shotgun', auto: false, rate: 0.85, magSize: 6, reload: 2.3, pellets: 8, pelletSpread: 0.05,
@@ -2785,13 +2785,13 @@ const WEAPONS = {
     name: 'REVOLVER MAGNUM', cues: 'magnum', auto: false, rate: 0.42, magSize: 6, reload: 2.1,
     dmg: { head: 240, body: 95, limb: 65 }, hip: 0.014, ads: 0.0008, move: 0.02, bloom: 0.02,
     recoil: 0.075, climb: 0.028, fov: 55, vol: 1.1, snd: SND.magnum, speed: 1.02, shake: 0.32, kickRot: 0.34, kickBack: 0.06,
-    hipPos: new V3(0.13, -0.15, -0.42), adsPos: new V3(0, -0.0765, -0.38), ...buildMagnum(),
+    hipPos: new V3(0.13, -0.15, -0.42), adsPos: new V3(0, -0.0765, -0.38), hipYaw: 0.1, ...buildMagnum(),
   },
   uzi: {
     name: 'MICRO SMG', auto: true, rate: 0.055, magSize: 32, reload: 1.3, adsSpeed: 10,
     dmg: { head: 55, body: 18, limb: 13 }, hip: 0.02, ads: 0.008, move: 0.012, bloom: 0.005,
     recoil: 0.01, climb: 0.004, fov: 64, vol: 0.8, snd: SND.uzi, speed: 1.12, shake: 0.07,
-    hipPos: new V3(0.15, -0.15, -0.46), adsPos: new V3(0, -0.07, -0.38), ...buildUzi(),
+    hipPos: new V3(0.15, -0.15, -0.46), adsPos: new V3(0, -0.07, -0.38), hipYaw: 0.1, ...buildUzi(),
   },
   burst: {
     name: 'FUCILE A RAFFICA', auto: false, burst: 3, burstDelay: 0.32, rate: 0.065, magSize: 30, reload: 1.7,
@@ -2821,7 +2821,7 @@ const WEAPONS = {
     name: 'PISTOLA A RAGGI', cues: 'raygun', auto: false, rate: 0.26, magSize: 20, reload: 2.5, projectile: 'plasma', projSpeed: 48, splash: 2.8, splashDmg: 130,
     dmg: { head: 320, body: 210, limb: 160 }, hip: 0.008, ads: 0.002, move: 0.01, bloom: 0.004,
     recoil: 0.03, climb: 0.012, fov: 58, vol: 0.9, snd: null, speed: 1.03, shake: 0.22, kickRot: 0.22, kickBack: 0.05,
-    hipPos: new V3(0.15, -0.16, -0.54), adsPos: new V3(0, -0.09, -0.44), ...buildRaygun(),
+    hipPos: new V3(0.15, -0.16, -0.54), adsPos: new V3(0, -0.09, -0.44), hipYaw: 0.1, ...buildRaygun(),
   },
 };
 // mystery box rarity tiers (weights decide how often each weapon rolls)
@@ -3324,10 +3324,13 @@ function updateWeapon(dt) {
   holder.position.y += clamp(-player.vel.y * 0.004, -0.04, 0.04) - player.landOff * 0.35;
   holder.position.z += weapon.kick * (w.kickBack ?? 0.05);
   holder.position.x -= sp * 0.06; holder.position.y -= sp * 0.05;
+  // hip pose: the weapon is held a little higher and turned toward the crosshair, so its side and both hands are in view
+  const hip = (1 - smooth(ads)) * (w.hipYaw ?? 0.2) / 0.2;
+  holder.position.x -= hip * 0.03; holder.position.y += hip * 0.045;
   holder.rotation.set(
-    weapon.kick * (w.kickRot ?? 0.06) - sp * 0.25,
-    sp * 0.75,
-    player.roll * 3 + sp * 0.3 + Math.sin(now * 1.1) * 0.004 * (1 - ads));
+    weapon.kick * (w.kickRot ?? 0.06) - sp * 0.25 + hip * 0.02,
+    sp * 0.75 + hip * 0.2,
+    player.roll * 3 + sp * 0.3 + Math.sin(now * 1.1) * 0.004 * (1 - ads) - hip * 0.06);
   // reload: tilt, mag drops out and a new one slides in
   if (weapon.reloading) {
     const p = 1 - weapon.reloadT / w.reload;
