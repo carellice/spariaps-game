@@ -3815,10 +3815,14 @@ const RIG_MUZZLE = new V3(0.22, 0.01, 1.03);
 let botCounter = 0;
 
 class Bot extends Enemy {
-  constructor(x, z, wave, boss = 0) {
-    super(x, z, Math.round((boss ? 1200 + 850 * (boss - 1) : 100) * D.hp));
-    this.name = boss ? `COLOSSO Mk.${boss}` : 'Bot-' + BOT_NAMES[botCounter++ % BOT_NAMES.length];
-    this.points = boss ? [1500 * boss, 1500 * boss, 1500 * boss] : [100, 150, 200];
+  constructor(x, z, wave, boss = 0, kind) {
+    // snipers show up from wave 3, never more than two at a time
+    if (boss) kind = null;
+    else if (kind === undefined) kind = wave >= 3 && Math.random() < Math.min(0.22, wave * 0.03) && enemies.filter(e => e.kind === 'sniper' && !e.dead).length < 2 ? 'sniper' : null;
+    super(x, z, Math.round((boss ? 1200 + 850 * (boss - 1) : kind === 'sniper' ? 70 : 100) * D.hp));
+    this.kind = kind; this.aimT = 0;
+    this.name = boss ? `COLOSSO Mk.${boss}` : (kind === 'sniper' ? 'Cecchino-' : 'Bot-') + BOT_NAMES[botCounter++ % BOT_NAMES.length];
+    this.points = boss ? [1500 * boss, 1500 * boss, 1500 * boss] : kind === 'sniper' ? [150, 220, 260] : [100, 150, 200];
     this.boss = boss; this.dmgMul = boss ? 0.9 + boss * 0.2 : 1; this.rocketT = 3;
     this.sparkColor = 0xffaa33;
     this.dropChance = 0.18;
@@ -3834,7 +3838,7 @@ class Bot extends Enemy {
     const armorMap = boss ? BOTTEX.boss : BOTTEX.armor[Math.floor(Math.random() * BOTTEX.armor.length)];
     const armor = this.mat({ map: armorMap, bumpMap: armorMap, bumpScale: 0.9, roughness: 0.36, metalness: boss ? 0.8 : 0.5 });
     const dark = this.mat({ map: BOTTEX.dark, bumpMap: BOTTEX.dark, bumpScale: 0.9, roughness: 0.42, metalness: 0.75 });
-    const glow = this.mat({ color: 0x111111, emissive: boss ? 0xff1e5a : 0xff4a10, emissiveIntensity: 4 * lightK(), side: THREE.DoubleSide });
+    const glow = this.mat({ color: 0x111111, emissive: boss ? 0xff1e5a : kind === 'sniper' ? 0x3aa8ff : 0xff4a10, emissiveIntensity: 4 * lightK(), side: THREE.DoubleSide });
     const chrome = this.mat({ color: 0xb8bec6, roughness: 0.2, metalness: 0.95 });
     this.glowMat = glow;
     this.flashMats = [armor, dark];
@@ -3894,6 +3898,16 @@ class Bot extends Enemy {
     this.add(BG.scope, dark, 0.22, 0.1, 0.48, null, this.rig);
     this.add(BG.lens, glow, 0.22, 0.1, 0.561, null, this.rig);
     this.add(BG.stock, dark, 0.22, -0.04, 0.23, null, this.rig);
+    if (kind === 'sniper') {
+      // pale armour, a long barrel with a big scope, and the laser that gives the shot away
+      armor.color.set(0xa9c4ff);
+      this.add(BG.barrel2, chrome, 0.22, 0.01, 1.2, null, this.rig);
+      this.add(BG.scope, dark, 0.22, 0.12, 0.62, null, this.rig).scale.setScalar(1.5);
+      this.laser = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 1, 6, 1, true).rotateX(Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.08, 0.05).multiplyScalar(2.5), transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+      this.laser.visible = false; this.laser.frustumCulled = false; scene.add(this.laser);
+      this.speed *= 0.85;
+    }
     this.flash = new THREE.Sprite(botFlashMat);
     this.flash.position.copy(RIG_MUZZLE); this.flash.scale.setScalar(0.7); this.flash.visible = false;
     this.rig.add(this.flash);
@@ -3902,7 +3916,28 @@ class Bot extends Enemy {
     spawnSmoke(this.pos.clone().setY(0.6), 0x888888, 1.6);
   }
   onHurt() { this.seenT = Math.max(this.seenT, this.reaction * 0.5); }
-  onDeathPose(fall) { this.rig.rotation.x = fall * 0.9; this.flash.visible = false; }
+  onDeathPose(fall) { this.rig.rotation.x = fall * 0.9; this.flash.visible = false; if (this.laser) this.laser.visible = false; }
+  remove() { super.remove(); if (this.laser) { scene.remove(this.laser); this.laser.material.dispose(); } }
+  // sniper: one heavy round after the laser has been on you; moving (or breaking the line) is how you dodge it
+  fireSniper(dist) {
+    this.group.updateMatrixWorld();
+    const muzzle = this.rig.localToWorld(RIG_MUZZLE.clone().setZ(1.3));
+    const target = playerEye().add(new V3(0, -0.3, 0));
+    const pSpeed = Math.hypot(player.vel.x, player.vel.z);
+    const p = clamp((pSpeed > 6 ? 0.25 : pSpeed > 1 ? 0.55 : 0.92) - (player.onGround ? 0 : 0.12) + (D.acc - 1) * 0.15, 0.1, 0.95);
+    let end = target;
+    if (Math.random() < p) damagePlayer(38, this.pos);
+    else {
+      const dir = target.clone().add(new V3(rand(-0.9, 0.9), rand(-0.5, 0.7), rand(-0.9, 0.9))).sub(muzzle).normalize();
+      losRay.set(muzzle, dir); losRay.far = 120;
+      const h = losRay.intersectObjects(worldMeshes, false)[0];
+      end = h ? h.point : muzzle.clone().addScaledVector(dir, 120);
+      if (h) addDecal(h.point, h.face.normal.clone().transformDirection(h.object.matrixWorld));
+    }
+    spawnTracer(muzzle, end, 0xff4030);
+    this.flashT = 0.08; this.kick = 1.6;
+    sfxShot(SND.sniper, clamp(1.2 - dist / 80, 0.3, 0.9), panOf(this.pos), clamp(dist / 60, 0, 1));
+  }
 
   fire(dist) {
     this.group.updateMatrixWorld();
@@ -3929,7 +3964,7 @@ class Bot extends Enemy {
 
   update(dt) {
     if (this.dead) return this.animateDeath(dt);
-    if (this.stunT > 0) { this.flashT = 0; this.flash.visible = false; this.hasLOS = false; this.seenT = 0; return this.stunnedUpdate(dt); }
+    if (this.stunT > 0) { this.flashT = 0; this.flash.visible = false; this.hasLOS = false; this.seenT = 0; if (this.laser) { this.laser.visible = false; this.aimT = 0; } return this.stunnedUpdate(dt); }
     const eye = this.pos.clone().setY(1.75), pEye = playerEye();
     const toP = pEye.clone().sub(eye), dist = toP.length();
     this.losT -= dt;
@@ -3941,7 +3976,15 @@ class Bot extends Enemy {
       faceYaw = Math.atan2(toP.x, toP.z);
       this.strafeT -= dt;
       if (this.strafeT <= 0) { this.strafeT = rand(0.7, 1.8); this.strafeDir = Math.random() < 0.5 ? -1 : 1; }
-      if (dist > 22) move = this.steerTo(player.pos.x, player.pos.z, dt);
+      if (this.kind === 'sniper') {
+        // keeps its distance: closes in only when far away, backs off (strafing) when you rush it
+        const flat = new V3(toP.x, 0, toP.z).normalize();
+        if (dist > 46) move = this.steerTo(player.pos.x, player.pos.z, dt);
+        else if (dist < 18) {
+          move = flat.clone().negate().addScaledVector(new V3(flat.z, 0, -flat.x), this.strafeDir * 0.6).normalize();
+          if (blockedAt(this.pos.x + move.x * 0.8, this.pos.z + move.z * 0.8)) move = new V3(flat.z, 0, -flat.x).multiplyScalar(this.strafeDir);
+        } else move = new V3();
+      } else if (dist > 22) move = this.steerTo(player.pos.x, player.pos.z, dt);
       else {
         const flat = new V3(toP.x, 0, toP.z).normalize();
         move = new V3(flat.z, 0, -flat.x).multiplyScalar(this.strafeDir)
@@ -3950,7 +3993,18 @@ class Bot extends Enemy {
         if (blockedAt(this.pos.x + move.x * 0.8, this.pos.z + move.z * 0.8)) { this.strafeDir *= -1; this.strafeT = rand(0.7, 1.5); }
       }
       this.fireCD -= dt;
-      if (this.seenT > this.reaction && this.fireCD <= 0) {
+      if (this.kind === 'sniper') {
+        // laser on for 1.5 s (it thickens as the shot gets close), then a long pause
+        if (this.seenT > this.reaction) this.aimT += dt;
+        if (this.aimT > 1.5) { this.fireSniper(dist); this.aimT = -rand(2.4, 3.6) * this.fireRate; }
+        if (this.aimT > 0) {
+          this.group.updateMatrixWorld();
+          const a = this.rig.localToWorld(RIG_MUZZLE.clone().setZ(1.3)), b = pEye.clone().add(new V3(0, -0.3, 0)), L = this.laser;
+          L.visible = true; L.position.copy(a).lerp(b, 0.5); L.lookAt(b);
+          const k = this.aimT / 1.5; L.scale.set(1 + k * 1.6, 1 + k * 1.6, a.distanceTo(b));
+          L.material.opacity = (0.35 + 0.5 * k) * (k > 0.75 ? 0.6 + 0.4 * Math.sin(now * 50) : 1);
+        } else this.laser.visible = false;
+      } else if (this.seenT > this.reaction && this.fireCD <= 0) {
         this.fire(dist);
         this.fireCD = rand(0.4, 0.9) * this.fireRate * (this.boss ? 0.8 : 1);
       }
@@ -3965,6 +4019,7 @@ class Bot extends Enemy {
     } else {
       move = this.steerTo(player.pos.x, player.pos.z, dt);
       this.fireCD = Math.max(this.fireCD, 0.3);
+      if (this.laser) { this.laser.visible = false; this.aimT = Math.min(this.aimT, 0); }
     }
     if (faceYaw === undefined && move.lengthSq() > 0) faceYaw = Math.atan2(move.x, move.z);
     if (faceYaw !== undefined) this.turnTo(faceYaw, dt);
@@ -4099,21 +4154,35 @@ Object.assign(ZG, {
 });
 
 class Zombie extends Enemy {
-  constructor(x, z, wave, boss = 0) {
+  constructor(x, z, wave, boss = 0, kind) {
+    // special breeds join in as the waves go on: spitters (ranged), bombers (explode) and armoured ones
+    if (boss) kind = null;
+    else if (kind === undefined) {
+      kind = null;
+      let r = Math.random();
+      for (const [k, from, p] of [['spitter', 2, Math.min(0.18, 0.05 + wave * 0.015)], ['bomber', 3, Math.min(0.16, 0.03 + wave * 0.015)], ['armored', 4, Math.min(0.18, wave * 0.02)]]) {
+        if (wave < from) continue;
+        if (r < p) { kind = k; break; }
+        r -= p;
+      }
+    }
     // climbers scale walls and crates: more of them on harder difficulties and later waves
-    const climber = !!boss || Math.random() < Math.min(0.7, (D.climb ?? 0.16) + wave * 0.012);
-    const runner = !climber && Math.random() < Math.min(0.45, 0.06 + wave * 0.05);
-    super(x, z, Math.round((boss ? 1800 + 1100 * (boss - 1) : (climber ? 110 : runner ? 70 : 100) * (1 + (wave - 1) * 0.06)) * D.hp));
+    const climber = !!boss || (!kind && Math.random() < Math.min(0.7, (D.climb ?? 0.16) + wave * 0.012));
+    const runner = !kind && !climber && Math.random() < Math.min(0.45, 0.06 + wave * 0.05);
+    const baseHp = kind === 'armored' ? 190 : kind === 'bomber' ? 60 : kind === 'spitter' ? 85 : climber ? 110 : runner ? 70 : 100;
+    super(x, z, Math.round((boss ? 1800 + 1100 * (boss - 1) : baseHp * (1 + (wave - 1) * 0.06)) * D.hp));
+    this.kind = kind; this.fuseT = 0; this.spitCD = rand(1, 2.5); this.spitT = 0; this.losT = 0; this.hasLOS = false;
     this.runner = runner; this.climber = climber; this.climbing = false;
     this.boss = boss; this.reach = boss ? 2.3 : 1.3; this.chargeT = 5; this.charging = 0;
-    this.name = boss ? `ABOMINIO Lv.${boss}` : climber ? 'Zombie arrampicatore' : runner ? 'Zombie corridore' : 'Zombie';
-    this.points = boss ? [1200 * boss, 1200 * boss, 1200 * boss] : [60, 90, 120];
+    this.name = boss ? `ABOMINIO Lv.${boss}` : kind ? { bomber: 'Zombie esplosivo', armored: 'Zombie corazzato', spitter: 'Zombie sputatore' }[kind] : climber ? 'Zombie arrampicatore' : runner ? 'Zombie corridore' : 'Zombie';
+    this.points = boss ? [1200 * boss, 1200 * boss, 1200 * boss] : kind === 'armored' ? [110, 150, 200] : kind ? [80, 110, 150] : [60, 90, 120];
     this.sparkColor = 0xb8ff5a;
     this.dropChance = 0.1;
     this.barY = 2.05;
     this.speed = (runner ? Math.min(6.2, 5 + wave * 0.06) : climber ? Math.min(4, 2.7 + wave * 0.09) : Math.min(3.6, 2.1 + wave * 0.1)) * D.speed;
-    this.hitDmg = boss ? 26 + 8 * boss : runner ? 9 : 14;
+    this.hitDmg = boss ? 26 + 8 * boss : kind === 'armored' ? 20 : runner ? 9 : 14;
     if (boss) this.speed = Math.min(4.2, 2.9 + boss * 0.2) * D.speed;
+    if (kind) this.speed = (kind === 'bomber' ? Math.min(5, 3.6 + wave * 0.08) : kind === 'armored' ? Math.min(2.6, 1.7 + wave * 0.06) : Math.min(3.4, 2.4 + wave * 0.08)) * D.speed;
     this.attackT = 0; this.attackCD = 0; this.hitDone = false;
     this.groanT = rand(1, 6);
     this.limp = runner ? 1 : rand(0.55, 1);
@@ -4125,7 +4194,7 @@ class Zombie extends Enemy {
     const skinDark = this.mat({ color: 0x2a2620, roughness: 0.9 });
     const shirt = this.mat({ map: ZTEX.shirts[Math.floor(Math.random() * SHIRTS.length)], roughness: 0.95 });
     const pants = this.mat({ map: ZTEX.pants, roughness: 0.95 });
-    const eyes = this.mat({ color: 0x111111, emissive: boss ? 0xff1e2a : climber ? 0x9a6bff : runner ? 0xff3010 : 0xffd040, emissiveIntensity: 5 * lightK() });
+    const eyes = this.mat({ color: 0x111111, emissive: boss ? 0xff1e2a : kind === 'bomber' ? 0xff7a1a : kind === 'spitter' ? 0x7dff3a : kind === 'armored' ? 0x6cd4ff : climber ? 0x9a6bff : runner ? 0xff3010 : 0xffd040, emissiveIntensity: 5 * lightK() });
     const hole = this.mat({ color: 0x0c0505, roughness: 1 });
     const gore = this.mat({ color: 0x4a0707, roughness: 0.22, metalness: 0.1 });
     const bone = this.mat({ color: 0x9c9072, roughness: 0.75 });
@@ -4175,11 +4244,60 @@ class Zombie extends Enemy {
       return { sh, el, s };
     });
     if (boss) this.spine.scale.set(1.3, 1.05, 1.3); // hulking torso
+    if (kind === 'bomber') {
+      // bloated body covered in glowing pustules
+      this.spine.scale.set(1.35, 1.08, 1.5);
+      this.pusMat = this.mat({ color: 0x331000, emissive: 0xff7a1a, emissiveIntensity: 3 });
+      for (const [px, py, pz, r] of [[0.1, 0.5, 0.15, 0.1], [-0.13, 0.36, 0.16, 0.08], [0.02, 0.24, 0.17, 0.07], [0.17, 0.3, 0.05, 0.07], [-0.1, 0.56, -0.14, 0.09], [0.12, 0.34, -0.15, 0.08], [-0.2, 0.5, 0.02, 0.07]])
+        this.add(new THREE.SphereGeometry(r, 10, 8), this.pusMat, px, py, pz, 'body', S);
+    } else if (kind === 'armored') {
+      // riot gear: vest, shoulder pads and a helmet with a visor
+      const plate = this.mat({ color: 0x1c2330, roughness: 0.4, metalness: 0.7 }), visor = this.mat({ color: 0x0a0f16, roughness: 0.1, metalness: 0.9 });
+      this.add(rbox(0.5, 0.5, 0.34, 0.08), plate, 0, 0.42, 0, 'body', S);
+      for (const sd of [-1, 1]) this.add(rbox(0.2, 0.12, 0.26, 0.05), plate, 0.3 * sd, 0.63, 0, 'body', S);
+      this.add(new THREE.SphereGeometry(0.2, 18, 12, 0, Math.PI * 2, 0, Math.PI * 0.6), plate, 0, 0.02, 0, 'head', H);
+      this.add(rbox(0.3, 0.12, 0.05, 0.02), visor, 0, 0.0, 0.165, 'head', H);
+    } else if (kind === 'spitter') {
+      // sickly green skin and a glowing acid sac under the jaw
+      skin.color.set(0xa8d890);
+      this.sacMat = this.mat({ color: 0x0a2a08, emissive: 0x7dff3a, emissiveIntensity: 2.5 });
+      this.add(new THREE.SphereGeometry(0.11, 12, 10), this.sacMat, 0, 0.72, 0.11, 'body', S);
+      this.add(new THREE.SphereGeometry(0.07, 10, 8), this.sacMat, 0.1, 0.5, 0.15, null, S);
+      this.add(new THREE.SphereGeometry(0.06, 10, 8), this.sacMat, -0.12, 0.42, 0.15, null, S);
+    }
     this.finish();
     spawnParticles(this.pos.clone().setY(0.3), 0x6a5a40, 16, new V3(0, 1, 0), 3, false);
     spawnSmoke(this.pos.clone().setY(0.4), 0x4a4038, 1.8);
   }
-  onDeath() { const d = playerEye().distanceTo(this.pos); if (d < 30) sfxGroan(clamp(1.1 - d / 30, 0.15, 0.9), panOf(this.pos), 'death'); }
+  onDeath() {
+    const d = playerEye().distanceTo(this.pos); if (d < 30) sfxGroan(clamp(1.1 - d / 30, 0.15, 0.9), panOf(this.pos), 'death');
+    if (this.kind === 'bomber') this.blow();
+  }
+  // armour shrugs off bullets (explosions and blades go through)
+  damage(amount, head, weaponKey) {
+    if (this.kind === 'armored' && !this.dead && !['frag', 'rocket', 'raygun', 'knife', 'tknife'].includes(weaponKey)) {
+      amount *= head ? 0.6 : 0.35;
+      if (Math.random() < 0.5) sfxTone(rand(1800, 2400), 0.04, 0.05, 'square', 900);
+    }
+    return super.damage(amount, head, weaponKey);
+  }
+  // bomber: blast that hurts you and every zombie around (chain reactions welcome)
+  blow() {
+    if (this.blown) return;
+    this.blown = true;
+    const p = this.pos.clone().setY(this.pos.y + 1);
+    explode(p, { radius: 4.5, dmg: 150, key: 'frag', color: 0xff8a2a, skip: this });
+    const body = player.pos.clone().setY(player.pos.y + 0.9), pd = body.distanceTo(p);
+    if (pd < 4.5 && worldClear(p, body)) damagePlayer(38 * (1 - pd / 4.5 * 0.7), p);
+  }
+  spit() {
+    const m = this.pos.clone().setY(this.pos.y + 1.55).add(new V3(Math.sin(this.yaw), 0, Math.cos(this.yaw)).multiplyScalar(0.3));
+    const d = playerEye().add(new V3(0, -0.4, 0)).sub(m), T = Math.max(0.25, Math.hypot(d.x, d.z) / 17);
+    // lobbed with a little lead: keep moving and it lands behind you
+    launchProjectile('acid', m, new V3((d.x + player.vel.x * T * 0.6) / T, d.y / T + 4.5 * T, (d.z + player.vel.z * T * 0.6) / T));
+    const dist = playerEye().distanceTo(m);
+    sfxSwoosh(clamp(0.5 - dist / 60, 0.08, 0.4)); sfxGroan(clamp(0.8 - dist / 40, 0.1, 0.6), panOf(this.pos), 'attack');
+  }
   onDeathPose(fall) { this.arms.forEach(a => { a.sh.rotation.x = lerp(a.sh.rotation.x, -2.6, fall); a.el.rotation.x = -0.2; }); }
 
   update(dt) {
@@ -4191,7 +4309,24 @@ class Zombie extends Enemy {
     const dy = player.pos.y - this.pos.y, reachable = dy > -1.1 && dy < (this.boss ? 2.6 : 1.65);
     const direct = this.climber && (player.pos.y > 1.3 || this.pos.y > 1.3) && dh < 16;
     this.attackCD -= dt;
-    let move = new V3(), speed = this.speed;
+    let move = new V3(), speed = this.speed, hold = false;
+    if (this.kind === 'bomber') {
+      // lights its fuse next to you, then goes off (no kill reward for letting it)
+      this.attackCD = 9;
+      if (this.fuseT <= 0 && dh < 2 && Math.abs(dy) < 2.2) { this.fuseT = 0.55; sfxTone(900, 0.5, 0.12, 'square', 2400); }
+      if (this.fuseT > 0 && (this.fuseT -= dt) <= 0) { this.blow(); this.hp = 0; this.dead = true; this.hb.visible = false; return this.animateDeath(dt); }
+      this.pusMat.emissiveIntensity = (2.6 + Math.sin(now * (this.fuseT > 0 ? 40 : 5) + this.walk) * 1.6) * lightK() * (this.fuseT > 0 ? 2 : 1);
+    } else if (this.kind === 'spitter') {
+      // stops at range with a clear view and lobs acid; still claws if you walk up to it
+      if ((this.losT -= dt) <= 0) { this.losT = 0.25; this.hasLOS = dh < 26 && lineOfSight(this.pos.clone().setY(this.pos.y + 1.55), playerEye()); }
+      this.spitCD -= dt;
+      if (this.hasLOS && dh > 6 && dh < 24) {
+        hold = true;
+        if (this.spitCD <= 0 && this.attackT <= 0 && this.spitT <= 0) { this.spitCD = rand(2.2, 3.4); this.spitT = 0.45; }
+      }
+      if (this.spitT > 0 && (this.spitT -= dt) <= 0) this.spit();
+      this.sacMat.emissiveIntensity = (2.2 + Math.sin(now * 4 + this.walk) * 0.8 + (this.spitT > 0 ? 4 : 0)) * lightK();
+    }
     if (this.attackT > 0) {
       this.attackT += dt;
       const p = this.attackT / 0.7;
@@ -4208,7 +4343,7 @@ class Zombie extends Enemy {
     } else if (dh < this.reach && reachable && this.attackCD <= 0) {
       this.attackT = 0.0001; this.hitDone = false;
       sfxGroan(0.75, panOf(this.pos), 'attack');
-    } else if (dh > this.reach * 0.73 || (direct && !reachable && dh > 0.05)) {
+    } else if (!hold && (dh > this.reach * 0.73 || (direct && !reachable && dh > 0.05))) {
       move = direct ? new V3(dx, 0, dz).normalize() : this.steerTo(player.pos.x, player.pos.z, dt);
     }
     // boss: roars and charges when you keep your distance
@@ -4220,7 +4355,7 @@ class Zombie extends Enemy {
       }
       if (this.charging > 0) speed *= 2.3;
     }
-    this.turnTo(dh < 5 || this.attackT > 0 ? Math.atan2(dx, dz) : move.lengthSq() > 0 ? Math.atan2(move.x, move.z) : this.yaw, dt, this.runner ? 9 : 5);
+    this.turnTo(dh < 5 || this.attackT > 0 || hold ? Math.atan2(dx, dz) : move.lengthSq() > 0 ? Math.atan2(move.x, move.z) : this.yaw, dt, this.runner ? 9 : 5);
     this.moveAndCollide(move, speed, dt, this.boss ? 0.6 : 0.38, direct);
 
     this.groanT -= dt;
@@ -4234,13 +4369,14 @@ class Zombie extends Enemy {
     const lean = this.runner ? 0.42 : 0.26;
     this.spine.rotation.set(lean - this.flinch * 0.45 + Math.sin(now * 1.3 + this.walk) * 0.02, Math.sin(this.walk) * 0.12 * amt,
       Math.sin(this.walk) * (this.runner ? 0.06 : 0.16) * amt + this.flinchSide * this.flinch * 0.3);
+    if (this.spitT > 0) this.spine.rotation.x -= 0.55 * Math.sin(this.spitT / 0.45 * Math.PI);   // rears back before spitting
     this.headG.rotation.set(-lean * 0.6 + Math.sin(now * 2.1 + this.walk) * 0.05, 0, this.headTilt + Math.sin(now * 0.9) * 0.08);
     // sudden neck jerks, chattering jaw, flickering eyes
     if ((this.twitchT -= dt) <= 0) { this.twitchT = rand(0.7, 3.2); this.tw.set(rand(-0.35, 0.35), rand(-0.55, 0.55), rand(-0.45, 0.45)); this.twK = 1; }
     this.twK = Math.max(0, this.twK - dt * 4.5);
     const tk = this.twK * this.twK;
     this.headG.rotation.x += this.tw.x * tk; this.headG.rotation.y += this.tw.y * tk; this.headG.rotation.z += this.tw.z * tk;
-    const open = this.attackT > 0 ? 0.6 : 0.16 + Math.max(0, Math.sin(now * 11 + this.walk * 2)) * 0.14;
+    const open = this.attackT > 0 || this.spitT > 0 ? 0.6 : 0.16 + Math.max(0, Math.sin(now * 11 + this.walk * 2)) * 0.14;
     this.jaw.rotation.x = lerp(this.jaw.rotation.x, open, Math.min(1, dt * 14));
     this.eyesMat.emissiveIntensity = (4.2 + Math.sin(now * 9 + this.walk) * 1.2 + (Math.random() < 0.03 ? -3 : 0)) * lightK();
     let swing = null;
@@ -4746,6 +4882,7 @@ const PROJ = {
   plasma: { grav: 0, hits: true, life: 2.5, r: 0.05 },
   rocket: { grav: 0, hits: true, life: 4, r: 0.08 },
   erocket: { grav: 0, hits: true, enemy: true, life: 5, r: 0.1 },
+  acid: { grav: 9, hits: true, enemy: true, life: 5, r: 0.12 },
 };
 const TH_MATS = {
   olive: new THREE.MeshStandardMaterial({ color: 0x4d5a3a, roughness: 0.55, metalness: 0.3 }),
@@ -4773,6 +4910,7 @@ const PROJ_BUILD = {
     f.position.z = -0.22; f.scale.setScalar(0.5);
     g.add(b, c, f); return g;
   },
+  acid() { const g = PROJ_BUILD.plasma(); g.scale.setScalar(1.5); return g; },
   erocket() { const g = PROJ_BUILD.rocket(); g.scale.setScalar(1.5); g.children[2].material.color.set(0xff4060); return g; },
   plasma() { const g = new THREE.Group(); g.add(new THREE.Mesh(TH_GEO.core, TH_MATS.plasmaCore)); const s = new THREE.Sprite(TH_MATS.plasmaGlow); s.scale.setScalar(0.7); g.add(s); return g; },
 };
@@ -4918,6 +5056,16 @@ function explode(p, o) {
     if (pd < o.radius && worldClear(from, body)) damagePlayer(o.self * (1 - pd / o.radius), p, true);
   }
 }
+// spitter acid: a direct hit burns, landing next to you only splashes
+function acidSplash(p, direct) {
+  spawnParticles(p, 0x8dff4a, 16, new V3(0, 1, 0), 4);
+  spawnSmoke(p, 0x4a7a30, 1.3);
+  const d = playerEye().distanceTo(p);
+  if (actx) withCat('enemies', () => sfxBurst(actx.currentTime, 0.25, 'bandpass', 1800, 0.8, clamp(0.5 - d / 50, 0.05, 0.4), sfxOut()));
+  const body = player.pos.clone().setY(player.pos.y + 0.9), pd = body.distanceTo(p);
+  if (direct) damagePlayer(13, p);
+  else if (pd < 1.8 && worldClear(p, body)) damagePlayer(6 * (1 - pd / 1.8 * 0.5), p);
+}
 function enemyBlast(p) {
   const boss = enemies.find(b => b.boss && !b.dead);
   explode(p, { radius: 4, dmg: 0, noEnemies: true, key: 'rocket', color: 0xff5040 });
@@ -4977,6 +5125,7 @@ function onImpact(pr, h, dir) {
     return false;
   }
   if (pr.kind === 'erocket') { enemyBlast(h.point.clone().addScaledVector(dir, -0.3)); return true; }
+  if (pr.kind === 'acid') { acidSplash(h.point.clone().addScaledVector(dir, -0.1), false); return true; }
   if (pr.kind === 'rocket') {
     const n = enemy ? dir.clone().negate() : h.face.normal.clone().transformDirection(h.object.matrixWorld);
     explode(h.point.clone().addScaledVector(n, 0.2), { radius: 6, dmg: 400 * dmgMul('rocket'), key: 'rocket', self: 55, vol: 1.2 });
@@ -5015,7 +5164,7 @@ function updateThrowables(dt) {
       projRay.set(pr.pos, dir); projRay.far = len + def.r;
       const h = len > 1e-5 && projRay.intersectObjects(def.hits && !def.enemy ? worldMeshes.concat(...enemies.filter(b => !b.dead).map(b => b.parts)) : worldMeshes, false)[0];
       // boss rockets also blow up when they reach you
-      if (def.enemy && pr.pos.distanceTo(player.pos.clone().setY(player.pos.y + 0.9)) < 1) { enemyBlast(pr.pos); removeProjectile(i); continue; }
+      if (def.enemy && pr.pos.distanceTo(player.pos.clone().setY(player.pos.y + 0.9)) < 1) { if (pr.kind === 'acid') acidSplash(pr.pos, true); else enemyBlast(pr.pos); removeProjectile(i); continue; }
       if (h) {
         if (def.hits) { if (onImpact(pr, h, dir)) removeProjectile(i); continue; }
         const n = h.face.normal.clone().transformDirection(h.object.matrixWorld);
@@ -5033,7 +5182,7 @@ function updateThrowables(dt) {
       pr.mesh.lookAt(pr.pos.clone().add(pr.vel)); pr.mesh.children[2].scale.setScalar(rand(0.4, 0.65));
       if (Math.random() < (lowGfx() ? 0.35 : 0.8)) spawnSmoke(pr.pos.clone().addScaledVector(pr.vel, -0.012), 0xb8b2aa, 0.7);
     }
-    else if (pr.kind === 'plasma') { pr.mesh.children[1].scale.setScalar(0.6 + Math.sin(pr.t * 40) * 0.12); if (Math.random() < 0.5) spawnParticles(pr.pos, 0x6bff8a, 1, null, 0.6); }
+    else if (pr.kind === 'plasma' || pr.kind === 'acid') { pr.mesh.children[1].scale.setScalar(0.6 + Math.sin(pr.t * 40) * 0.12); if (Math.random() < 0.5) spawnParticles(pr.pos, 0x6bff8a, 1, null, 0.6); }
     else if (!pr.rest) { pr.mesh.rotation.x += dt * pr.spin; pr.mesh.rotation.z += dt * pr.spin * 0.6; }
   }
   for (let i = flashes.length - 1; i >= 0; i--) {
