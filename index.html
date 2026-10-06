@@ -290,6 +290,26 @@
   .ov-title { font: 700 clamp(40px, 6vw, 60px)/.9 var(--num); letter-spacing: 4px; margin-top: 14px;
     background: linear-gradient(180deg, #fff 30%, var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .ov-sub { color: var(--mut); font-size: 14px; margin: 8px 0 22px; }
+  .shop-cash { display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 14px; margin-bottom: 16px; }
+  .shop-cash svg { width: 22px; height: 22px; color: #ffd45a; display: block; }
+  .shop-cash b { font: 700 28px/1 var(--num); color: #ffd45a; }
+  .shop-cash span:last-child { font: 700 11px var(--num); letter-spacing: 2px; color: var(--mut); }
+  .shop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }
+  .shop-col { padding: 18px; border-radius: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .shop-col .sw { display: flex; align-items: center; gap: 14px; margin-bottom: 4px; }
+  .shop-col .ic svg { height: 26px; width: auto; color: var(--accent2); display: block; }
+  .shop-col .cn { font: 700 22px/1 var(--num); letter-spacing: 2px; }
+  .shop-col .wn { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--mut); margin-top: 5px; }
+  .upg { pointer-events: auto; cursor: pointer; display: grid; grid-template-columns: 1fr auto 64px; align-items: center; gap: 14px; text-align: left; padding: 12px 14px; border-radius: 12px;
+    color: var(--txt); background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); font-family: inherit; transition: all .15s; }
+  .upg:hover:not(:disabled) { background: rgba(255,107,61,.18); border-color: rgba(255,140,90,.7); }
+  .upg .un { font: 700 17px var(--num); letter-spacing: 1.5px; }
+  .upg small { display: block; font: 500 11.5px 'Inter'; letter-spacing: 0; color: var(--mut); margin-top: 2px; }
+  .upg .uc { font: 700 20px var(--num); color: #ffd45a; text-align: right; }
+  .upg:disabled { cursor: not-allowed; }
+  .upg:disabled .uc { color: var(--bad); }
+  .upg.max { opacity: .6; }
+  .upg.max .uc { color: var(--armor2); }
   .maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
   .mapc { pointer-events: auto; cursor: pointer; text-align: left; color: var(--txt); padding: 0; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; font-family: inherit; transition: all .15s; }
   .mapc:hover { transform: translateY(-3px); }
@@ -508,6 +528,19 @@
       </div>
       <div class="csec" data-t="2" id="bonusLegend" hidden></div>
       <div class="csec" data-t="3" id="padLegend" hidden></div>
+    </div>
+  </div>
+</div>
+
+<div id="shop" class="overlay hidden">
+  <div class="ov-wrap">
+    <div class="tag"><span class="dot"></span><span id="shopTag"></span></div>
+    <div class="ov-title" id="shopTitle"></div>
+    <div class="ov-sub" id="shopSub"></div>
+    <div class="shop-cash glass"><span id="shopCoin"></span><b id="shopCash">0</b><span>CREDITI</span></div>
+    <div class="shop-grid" id="shopGrid"></div>
+    <div class="ov-actions">
+      <button id="shopClose" class="pbtn">TORNA IN PARTITA<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
     </div>
   </div>
 </div>
@@ -1778,6 +1811,34 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
   document.fonts?.ready.then(() => CITY.redraw.forEach(d => d()));
 }
 
+// ============================================================ shop stations, placed on every map
+// built facing local +z; the body is the only part with a collider
+function station(kind, x, z, ry) {
+  const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; B.root.add(g);
+  const add = (geo, mat, px, py, pz) => { const m = new THREE.Mesh(geo, mat); m.position.set(px, py, pz); m.castShadow = m.receiveShadow = true; g.add(m); return m; };
+  let body;
+  if (kind === 'bench') {
+    // weapon workbench: steel cabinet, wooden top, pegboard with tools and a rifle, vise, ammo tins
+    const steel = mats.pillar, olive = new THREE.MeshStandardMaterial({ color: 0x4a5540, roughness: 0.6, metalness: 0.2 });
+    body = add(rbox(2.4, 0.9, 0.9, 0.06), mats.cover, 0, 0.45, 0);
+    add(rbox(2.5, 0.08, 1, 0.03), mats.crate, 0, 0.94, 0);
+    for (const dx of [-0.6, 0.6]) add(rbox(1.05, 0.3, 0.03, 0.01), mats.trim, dx, 0.6, 0.455);
+    add(rbox(2.4, 1.4, 0.08, 0.03), mats.trim, 0, 1.68, -0.42);
+    add(rbox(0.95, 0.09, 0.05, 0.02), steel, 0.35, 1.9, -0.36); add(rbox(0.3, 0.16, 0.05, 0.02), mats.crate, 0.95, 1.86, -0.36); add(rbox(0.08, 0.26, 0.05, 0.02), steel, 0.45, 1.74, -0.36);
+    add(rbox(0.07, 0.5, 0.03, 0.01), steel, -0.95, 1.75, -0.37); add(rbox(0.07, 0.42, 0.03, 0.01), steel, -0.75, 1.79, -0.37); add(rbox(0.26, 0.07, 0.03, 0.01), steel, -0.5, 1.95, -0.37); add(rbox(0.05, 0.36, 0.03, 0.01), mats.neon, -0.5, 1.72, -0.37);
+    add(rbox(0.26, 0.24, 0.32, 0.03), steel, -0.85, 1.1, 0.1); add(rbox(0.1, 0.1, 0.5, 0.02), steel, -0.85, 1.14, 0.12);
+    add(rbox(0.32, 0.2, 0.22, 0.02), olive, 0.75, 1.08, 0.12); add(rbox(0.32, 0.2, 0.22, 0.02), olive, 0.82, 1.28, 0.1); add(rbox(0.3, 0.2, 0.22, 0.02), olive, 0.35, 1.08, 0.2);
+    add(new THREE.CapsuleGeometry(0.03, 2.2, 4, 10).rotateZ(Math.PI / 2), mats.neon, 0, 2.44, -0.37);
+    add(rbox(2.1, 0.56, 0.06, 0.02), mats.trim, 0, 2.78, -0.42);
+    add(new THREE.PlaneGeometry(2, 0.5), signMat('BANCO ARMI', '#ffb36b'), 0, 2.78, -0.385).castShadow = false;
+  }
+  g.updateMatrixWorld(true);
+  B.meshes.push(body); B.boxes.push(new THREE.Box3().setFromObject(body));
+  B[kind] = new V3(x, 0, z);
+}
+B = MAPS.arena; station('bench', 8, 38.9, Math.PI);
+B = MAPS.city; station('bench', -39.2, 19.5, Math.PI / 2);
+
 // ============================================================ atmosphere per mode
 const ATMOS = {
   classic: { fog: 0xc4d3e2, near: 45, far: 175, top: 0x2a64b0, bottom: 0x8c98a6, sun: 0xfff0dd, sunI: 2.4, hemi: 0.5, exposure: 0.95, glow: 1,
@@ -2886,6 +2947,18 @@ const player = {
 // arena power-ups: seconds left for each active bonus
 const powers = { jump: 0, haste: 0, quad: 0, ammo: 0, god: 0 };
 const pw = k => powers[k] > 0;
+// weapon upgrades bought at the workbench: three tracks per weapon, three levels each, kept for the whole match
+const UPGRADES = {
+  dmg: { name: 'DANNO', text: l => `+${l * 20}% danno` },
+  mag: { name: 'CARICATORE', text: l => `+${l * 25}% colpi` },
+  rel: { name: 'RICARICA', text: l => `−${l * 15}% tempo` },
+};
+const UPG_COST = [600, 1100, 1800];
+let upg = {};
+const upgLv = (k, t) => upg[k]?.[t] || 0;
+const magOf = k => Math.round(WEAPONS[k].magSize * (1 + 0.25 * upgLv(k, 'mag')));
+const dmgMul = k => 1 + 0.2 * upgLv(k, 'dmg');
+const reloadOf = (k = weapon.current) => WEAPONS[k].reload * (1 - 0.15 * upgLv(k, 'rel'));
 const weapon = {
   current: primary, last: 'pistol', mags: { [primary]: WEAPONS[primary].magSize, pistol: 12 },
   reloading: false, reloadT: 0, cooldown: 0, bloom: 0, kick: 0, recoilOff: 0, flashT: 0, adsT: 0, slideKick: 0,
@@ -2994,9 +3067,9 @@ addEventListener('mousemove', e => {
 });
 
 function startReload() {
-  if (weapon.reloading || weapon.switchT > 0 || weapon.meleeT > 0 || weapon.mags[weapon.current] === W().magSize) return;
-  if (pw('ammo')) { weapon.mags[weapon.current] = W().magSize; return; }
-  weapon.reloading = true; weapon.reloadT = W().reload; weapon.burstLeft = 0; weapon.cueI = 0;
+  if (weapon.reloading || weapon.switchT > 0 || weapon.meleeT > 0 || weapon.mags[weapon.current] === magOf(weapon.current)) return;
+  if (pw('ammo')) { weapon.mags[weapon.current] = magOf(weapon.current); return; }
+  weapon.reloading = true; weapon.reloadT = reloadOf(); weapon.burstLeft = 0; weapon.cueI = 0;
   triggerQueued = false;
 }
 function switchWeapon(to) {
@@ -3172,7 +3245,7 @@ function castShot(origin, dir, w, agg) {
     if (enemy) {
       if (!enemy.dead) {
         const part = hit.object.userData.part, head = part === 'head', prev = enemy.hp;
-        const dmg = w.dmg[part] * (pw('quad') ? 3 : 1);
+        const dmg = w.dmg[part] * (pw('quad') ? 3 : 1) * dmgMul(weapon.current);
         const killed = enemy.damage(dmg, head, weapon.current);
         const a = agg.get(enemy) || { sum: 0, point: hit.point, head: false, killed: false };
         a.sum += Math.min(prev, dmg); a.head ||= head; a.killed ||= killed;
@@ -3270,9 +3343,9 @@ function updateWeapon(dt) {
   if (weapon.reloading) {
     weapon.reloadT -= dt;
     // mechanical reload sounds, cued along the animation
-    const cues = RELOAD_CUES[w.cues || 'default'], rp = 1 - weapon.reloadT / w.reload;
+    const cues = RELOAD_CUES[w.cues || 'default'], rp = 1 - weapon.reloadT / reloadOf();
     while (weapon.cueI < cues.length && rp >= cues[weapon.cueI][0]) sfxMech(cues[weapon.cueI++][1]);
-    if (weapon.reloadT <= 0) { weapon.reloading = false; weapon.mags[weapon.current] = w.magSize; }
+    if (weapon.reloadT <= 0) { weapon.reloading = false; weapon.mags[weapon.current] = magOf(weapon.current); }
   }
   // simplified aiming: holding fire also aims, and shots wait until the sights are up
   const autoAim = settings.autoAds && firing && !aiming && !w.projectile;
@@ -3333,7 +3406,7 @@ function updateWeapon(dt) {
     player.roll * 3 + sp * 0.3 + Math.sin(now * 1.1) * 0.004 * (1 - ads) - hip * 0.06);
   // reload: tilt, mag drops out and a new one slides in
   if (weapon.reloading) {
-    const p = 1 - weapon.reloadT / w.reload;
+    const p = 1 - weapon.reloadT / reloadOf();
     const tilt = Math.sin(Math.min(1, p * 1.1) * Math.PI);
     holder.rotation.x -= tilt * 0.3; holder.rotation.z += tilt * 0.5; holder.position.y -= tilt * 0.06;
     if (p > 0.74 && p < 0.86) holder.position.y += Math.sin((p - 0.74) / 0.12 * Math.PI) * 0.018;
@@ -3346,7 +3419,7 @@ function updateWeapon(dt) {
     w.mag.position.y = w.magBase.y + off;
   } else { w.mag.visible = true; w.mag.position.y = w.magBase.y; }
   if (w.slide) {
-    const locked = weapon.mags.pistol === 0 && !(weapon.reloading && 1 - weapon.reloadT / w.reload > 0.8);
+    const locked = weapon.mags.pistol === 0 && !(weapon.reloading && 1 - weapon.reloadT / reloadOf() > 0.8);
     w.slide.position.z = w.slideBase + (locked ? 0.035 : weapon.slideKick * 0.045);
   }
   // pump / bolt cycling after each shot
@@ -4388,8 +4461,8 @@ function activatePower(type) {
   toast(def.name, 'pu', type, def.css);
   sfxPowerup(type);
   hurt = 0;
-  if (type === 'ammo') for (const k in weapon.mags) weapon.mags[k] = WEAPONS[k].magSize;
-  if (type === 'ammo' && weapon.reloading) { weapon.reloading = false; weapon.mags[weapon.current] = W().magSize; }
+  if (type === 'ammo') for (const k in weapon.mags) weapon.mags[k] = magOf(k);
+  if (type === 'ammo' && weapon.reloading) { weapon.reloading = false; weapon.mags[weapon.current] = magOf(weapon.current); }
   if (!puEls[type]) {
     const el = document.createElement('div');
     el.className = 'pu glass'; el.style.setProperty('--c', def.css);
@@ -4858,18 +4931,18 @@ function onImpact(pr, h, dir) {
   if (pr.kind === 'erocket') { enemyBlast(h.point.clone().addScaledVector(dir, -0.3)); return true; }
   if (pr.kind === 'rocket') {
     const n = enemy ? dir.clone().negate() : h.face.normal.clone().transformDirection(h.object.matrixWorld);
-    explode(h.point.clone().addScaledVector(n, 0.2), { radius: 6, dmg: 400, key: 'rocket', self: 55, vol: 1.2 });
+    explode(h.point.clone().addScaledVector(n, 0.2), { radius: 6, dmg: 400 * dmgMul('rocket'), key: 'rocket', self: 55, vol: 1.2 });
     shotsHit += enemy ? 1 : 0;
     return true;
   }
   // plasma bolt: direct hit + green splash
   if (enemy && !enemy.dead) {
-    const part = h.object.userData.part, w = WEAPONS.raygun, dmg = w.dmg[part] * (pw('quad') ? 3 : 1), prev = enemy.hp;
+    const part = h.object.userData.part, w = WEAPONS.raygun, dmg = w.dmg[part] * (pw('quad') ? 3 : 1) * dmgMul('raygun'), prev = enemy.hp;
     const killed = enemy.damage(dmg, part === 'head', 'raygun');
     showDamageNumber(h.point, Math.min(prev, dmg), part === 'head', killed); showHitmarker(killed);
     shotsHit++;
   }
-  explode(h.point, { radius: WEAPONS.raygun.splash, dmg: WEAPONS.raygun.splashDmg, key: 'raygun', color: 0x6bff8a, smoke: 0x3a6a40, vol: 0.45, skip: enemy, self: 12 });
+  explode(h.point, { radius: WEAPONS.raygun.splash, dmg: WEAPONS.raygun.splashDmg * dmgMul('raygun'), key: 'raygun', color: 0x6bff8a, smoke: 0x3a6a40, vol: 0.45, skip: enemy, self: 12 });
   return true;
 }
 function detonate(pr) {
@@ -4997,7 +5070,7 @@ function giveWeapon(key, mag) {
     i = Math.max(0, slots.indexOf(weapon.switchTo || weapon.current));
     spawnDrop(slots[i], weapon.mags[slots[i]], dropPoint());
   }
-  slots[i] = key; weapon.mags[key] = mag ?? WEAPONS[key].magSize;
+  slots[i] = key; weapon.mags[key] = mag ?? magOf(key);
   renderSlots();
   switchWeapon(key);
   sfxPickup(true);
@@ -5014,7 +5087,7 @@ function dropCurrentWeapon() {
 }
 function pickupDrop(d) {
   if (slots.includes(d.key)) {
-    weapon.mags[d.key] = WEAPONS[d.key].magSize;
+    weapon.mags[d.key] = magOf(d.key);
     toast(`MUNIZIONI ${WEAPONS[d.key].name}`, 'pu', d.key, rarityOf(d.key).css); sfxPickup(false);
   } else giveWeapon(d.key, d.mag);
   removeDrop(d);
@@ -5198,6 +5271,7 @@ function drawMinimap() {
     ctx.fillStyle = '#ffd45a'; const bp = box.group.position;
     ctx.fillRect(bp.x - 1, bp.z - 1, 2, 2);
   }
+  if (MAP.bench) { ctx.fillStyle = '#ff9d5c'; ctx.beginPath(); ctx.arc(MAP.bench.x, MAP.bench.z, 1.1, 0, Math.PI * 2); ctx.fill(); }
   ctx.restore();
   // enemies: clamp far ones to the rim so you always know where they come from
   for (const b of enemies) {
@@ -5229,12 +5303,15 @@ function interactTarget() {
     const dd = Math.hypot(player.pos.x - d.pos.x, player.pos.z - d.pos.z);
     if (dd < bd && Math.abs(player.pos.y - d.pos.y) < 1.2) { best = d; bd = dd; }
   }
-  return best ? { type: 'drop', drop: best } : null;
+  if (best) return { type: 'drop', drop: best };
+  if (MAP.bench && Math.hypot(player.pos.x - MAP.bench.x, player.pos.z - MAP.bench.z) < 2.6 && player.pos.y < 1.5) return { type: 'bench' };
+  return null;
 }
 function interact() {
   const t = interactTarget();
   if (!t) return;
   if (t.type === 'drop') return pickupDrop(t.drop);
+  if (t.type === 'bench') return openShop('bench');
   if (box.state === 'offer') return takeBoxWeapon();
   if (cash < BOX_COST) { sfxTone(220, 0.15, 0.12, 'square', 160); toast('CREDITI INSUFFICIENTI', 'pu', 'coin', '#ff8a7a'); return; }
   addCash(-BOX_COST); openBox();
@@ -5245,6 +5322,7 @@ function updateInteract() {
   let html = '';
   if (t?.type === 'box' && box.state === 'idle') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Cassa misteriosa · arma casuale</span><span class="price${cash < BOX_COST ? ' no' : ''}">${BOX_COST}</span>`;
   else if (t?.type === 'box') { const r = rarityOf(box.choice); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Prendi <b>${WEAPONS[box.choice].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
+  else if (t?.type === 'bench') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Banco armi · potenzia danno, caricatore e ricarica</span>`;
   else if (t) { const r = rarityOf(t.drop.key); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Raccogli <b>${WEAPONS[t.drop.key].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
   if (html !== promptKey) { promptKey = html; el.innerHTML = html; el.classList.toggle('on', !!html); }
 }
@@ -5259,6 +5337,7 @@ function resetArsenal() {
   while (drops.length) removeDrop(drops[0]);
   Object.assign(equip, EQUIP_START);
   slots = [primary, 'pistol']; renderSlots();
+  upg = {};
   cash = 0; addCash(500);
   placeBox(true);
   promptKey = ''; $('prompt').classList.remove('on');
@@ -5359,21 +5438,21 @@ function updateHUD(dt) {
     hudWeapon = weapon.current; hudMag = -1;
     hud$.wname.textContent = w.name;
     hud$.wicon.innerHTML = ICONS[weapon.current];
-    hud$.pips.innerHTML = '<span class="pip"></span>'.repeat(w.magSize);
-    hud$.pips.classList.toggle('dense', w.magSize > 40);
+    hud$.pips.innerHTML = '<span class="pip"></span>'.repeat(magOf(weapon.current));
+    hud$.pips.classList.toggle('dense', magOf(weapon.current) > 40);
   }
   if (hudMag !== mag) {
     hudMag = mag;
     [...hud$.pips.children].forEach((p, i) => p.classList.toggle('used', i >= mag));
   }
-  const low = mag <= Math.ceil(w.magSize / 6);
+  const low = mag <= Math.ceil(magOf(weapon.current) / 6);
   hud$.ammo.textContent = pw('ammo') ? '∞' : mag;
   hud$.ammo.classList.toggle('empty', low && !pw('ammo'));
   hud$.reloadhint.classList.toggle('on', low && !weapon.reloading && !pw('ammo'));
   for (const el of slotEls) el.classList.toggle('active', el.dataset.w === (weapon.meleeT > 0 ? 'knife' : weapon.current));
 
   hud$.ring.classList.toggle('on', weapon.reloading);
-  if (weapon.reloading) hud$.ringFg.style.strokeDashoffset = 125.66 * (weapon.reloadT / w.reload);
+  if (weapon.reloading) hud$.ringFg.style.strokeDashoffset = 125.66 * (weapon.reloadT / reloadOf());
 
   const boss = enemies.find(b => b.boss && !b.dead);
   $('bossbar').classList.toggle('on', !!boss);
@@ -5485,7 +5564,7 @@ function resetGame() {
 }
 function beginPlay() {
   state = 'playing';
-  $('classMenu').classList.add('hidden'); $('settings').classList.add('hidden');
+  $('classMenu').classList.add('hidden'); $('settings').classList.add('hidden'); $('shop').classList.add('hidden');
   menu.classList.add('hidden'); hud.classList.add('on');
   holder.visible = true;
   setMusic('game');
@@ -5535,6 +5614,58 @@ function gameOver() {
     stats: stat(wave, WORD().wave) + stat(kills, 'Uccisioni') + stat(score, 'Punti', record) + stat(acc + '%', 'Precisione') + stat(headshots, 'Headshot'),
   });
 }
+
+// ---------------------------------------------------------------- in-match shops (the world freezes while one is open)
+let shopKind = null, shopT = 0;
+$('shopCoin').innerHTML = ICONS.coin;
+function openShop(kind) {
+  shopKind = kind; state = 'shop'; shopT = performance.now();
+  firing = aiming = false;
+  for (const k in keys) keys[k] = false;
+  if (document.pointerLockElement) document.exitPointerLock();
+  setMusic('pause');
+  $('scope').classList.remove('on');
+  $('shopTag').textContent = `${WORD().wave} ${wave}`;
+  $('shopTitle').textContent = 'BANCO ARMI';
+  $('shopSub').textContent = 'Spendi i crediti per potenziare le armi che hai con te. I potenziamenti restano su quell’arma per tutta la partita, anche se la lasci a terra e la riprendi.';
+  renderShop();
+  $('shop').classList.remove('hidden');
+}
+function closeShop() {
+  if (state !== 'shop') return;
+  $('shop').classList.add('hidden');
+  enterGame();
+}
+function renderShop() {
+  $('shopCash').textContent = cash;
+  $('shopGrid').innerHTML = slots.filter(Boolean).map(k => `
+    <div class="shop-col glass">
+      <div class="sw"><div class="ic">${ICONS[k] || ''}</div><div><div class="cn">${WEAPONS[k].name}</div><div class="wn">${k === weapon.current ? 'IN MANO' : 'DI RISERVA'}</div></div></div>
+      ${Object.entries(UPGRADES).map(([t, u]) => {
+        const l = upgLv(k, t), max = l >= UPG_COST.length, cost = UPG_COST[l];
+        return `<button class="upg${max ? ' max' : ''}" data-k="${k}" data-t="${t}" ${max || cash < cost ? 'disabled' : ''}>
+          <span class="un">${u.name}<small>${l ? u.text(l) : 'di serie'}${max ? '' : ' → ' + u.text(l + 1)}</small></span>
+          <span class="lv">${UPG_COST.map((_, i) => `<i class="${i < l ? 'on' : ''}"></i>`).join('')}</span>
+          <span class="uc">${max ? 'MAX' : cost}</span>
+        </button>`;
+      }).join('')}
+    </div>`).join('');
+  $('shopGrid').querySelectorAll('.upg').forEach(b => b.addEventListener('click', () => buyUpgrade(b.dataset.k, b.dataset.t)));
+}
+function buyUpgrade(k, t) {
+  const l = upgLv(k, t), cost = UPG_COST[l];
+  if (cost === undefined || cash < cost) return;
+  addCash(-cost);
+  (upg[k] ||= {})[t] = l + 1;
+  if (t === 'mag') weapon.mags[k] = magOf(k);   // the bigger magazine comes full
+  hudWeapon = null;
+  withCat('ui', () => { sfxTone(520, 0.1, 0.1, 'triangle', 780); sfxTone(1040, 0.18, 0.08, 'triangle', 1560, 0.08); });
+  renderShop();
+}
+$('shopClose').addEventListener('click', closeShop);
+addEventListener('keydown', e => {
+  if (state === 'shop' && !e.repeat && (e.code === 'Escape' || e.code === 'KeyE') && performance.now() - shopT > 250) closeShop();
+});
 
 // ---------------------------------------------------------------- map selection (shown before the class menu)
 const MAP_ORDER = ['city', 'arena'], thumbs = {};
@@ -5619,7 +5750,7 @@ function applyClassSwap() {
     if (wasCurrent || !slots.includes(weapon.current)) { weapon.current = neu; weapon.switchTo = null; weapon.switchT = 0; weapon.reloading = false; }
     renderSlots();
   }
-  weapon.mags[neu] = WEAPONS[neu].magSize;
+  weapon.mags[neu] = magOf(neu);
   player.armor = Math.max(player.armor, c.armor);
   classSwaps++;
   toast(`CLASSE: ${c.name}`, 'pu', neu, '#ffb36b');
@@ -5842,7 +5973,7 @@ document.querySelectorAll('#assistSeg button').forEach(b => b.addEventListener('
 // ---------------------------------------------------------------- menu navigation with the pad
 let padFocus = null, padLayer = null;
 function uiLayer() {
-  for (const id of ['quitDlg', 'settings', 'classMenu', 'mapMenu']) if (!$(id).classList.contains('hidden')) return $(id);
+  for (const id of ['quitDlg', 'settings', 'shop', 'classMenu', 'mapMenu']) if (!$(id).classList.contains('hidden')) return $(id);
   return state !== 'playing' && !menu.classList.contains('hidden') ? menu : null;
 }
 function focusables(layer) {
@@ -5861,6 +5992,7 @@ function defaultFocus(layer) {
   if (layer.id === 'quitDlg') return $('quitNo');
   if (layer.id === 'classMenu') return layer.querySelector('.cls.sel') || $('startBtn');
   if (layer.id === 'mapMenu') return layer.querySelector('.mapc.sel') || $('mapNext');
+  if (layer.id === 'shop') return layer.querySelector('.upg:not(:disabled)') || $('shopClose');
   if (layer.id === 'settings') return $('settingsClose');
   return $('play');
 }
@@ -5896,6 +6028,7 @@ function padBack(layer) {
   if (layer.id === 'settings') return $('settingsClose').click();
   if (layer.id === 'classMenu') return $('classBack').click();
   if (layer.id === 'mapMenu') return $('mapBack').click();
+  if (layer.id === 'shop') return closeShop();
   if (menuType === 'pause') return $('play').click();
 }
 addEventListener('mousemove', () => { if (state !== 'playing' && padFocus) clearPadFocus(); });
@@ -5982,7 +6115,7 @@ function pollPad(dt) {
       if (dir !== navHeld) { navHeld = dir; navT = 0.38; if (dir) padNav(...{ u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[dir]); }
       else if (dir && (navT -= dt) <= 0) { navT = 0.11; padNav(...{ u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[dir]); }
       const [, scy] = dz(ax[2] || 0, ax[3] || 0, 0.2);
-      if (scy) { const sc = layer.id === 'settings' || layer.id === 'classMenu' || layer.id === 'mapMenu' ? layer : layer === menu ? (menu.scrollHeight > menu.clientHeight ? menu : menu.querySelector('.controls-card')) : null; sc?.scrollBy(0, scy * Math.abs(scy) * 1400 * dt); }
+      if (scy) { const sc = layer.id === 'settings' || layer.id === 'classMenu' || layer.id === 'mapMenu' || layer.id === 'shop' ? layer : layer === menu ? (menu.scrollHeight > menu.clientHeight ? menu : menu.querySelector('.controls-card')) : null; sc?.scrollBy(0, scy * Math.abs(scy) * 1400 * dt); }
       if (down(0) && !fresh && padFocus && layer.contains(padFocus)) padFocus.click();
       if (down(1)) padBack(layer);
       if (down(9) && layer === menu) $('play').click();
