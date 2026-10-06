@@ -182,7 +182,7 @@ Spariaps/
 ├── Spariaps.app      → avvio con un doppio clic (macOS)
 ├── Spariaps-icona.png → logo del gioco
 ├── index.html        → il gioco completo
-└── music/            → colonna sonora (brani del menu e loop di gioco)
+└── Music/            → colonna sonora (brani del menu e loop di gioco)
 ```
 
 ---
