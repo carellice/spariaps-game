@@ -98,7 +98,10 @@
   .toast.hp { color: var(--good2); } .toast.ar { color: var(--armor2); }
   .toast.pu { color: var(--c); box-shadow: 0 0 22px color-mix(in srgb, var(--c) 45%, transparent); }
 
-  #powerups { position: absolute; left: 20px; bottom: 150px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
+  #perks { position: absolute; left: 22px; bottom: 122px; display: flex; gap: 6px; }
+  #perks span { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font: 700 13px var(--num); letter-spacing: .5px; color: #0b0f16;
+    background: var(--c); box-shadow: 0 0 14px color-mix(in srgb, var(--c) 55%, transparent), inset 0 1px 0 rgba(255,255,255,.5); }
+  #powerups { position: absolute; left: 20px; bottom: 164px; display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 8px; }
   .pu { --c: #fff; display: flex; align-items: center; gap: 9px; padding: 8px 12px 8px 10px; border-radius: 14px; animation: puIn .35s cubic-bezier(.2,.9,.3,1.3); }
   .pu svg { width: 20px; height: 20px; color: var(--c); filter: drop-shadow(0 0 6px var(--c)); }
   .pu .nm { font: 700 12px var(--num); letter-spacing: 1.4px; color: var(--c); white-space: nowrap; }
@@ -310,6 +313,17 @@
   .upg:disabled .uc { color: var(--bad); }
   .upg.max { opacity: .6; }
   .upg.max .uc { color: var(--armor2); }
+  .perkc { pointer-events: auto; cursor: pointer; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 14px; text-align: left; padding: 14px 16px; border-radius: 16px;
+    color: var(--txt); font-family: inherit; transition: all .15s; }
+  .perkc:hover:not(:disabled) { transform: translateY(-2px); border-color: var(--c); }
+  .perkc .pt { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; font: 700 19px var(--num); color: #0b0f16; background: var(--c); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 50%, transparent); }
+  .perkc b { display: block; font: 700 19px var(--num); letter-spacing: 1.5px; }
+  .perkc small { display: block; font-size: 12px; color: rgba(238,242,247,.75); line-height: 1.4; margin-top: 3px; }
+  .perkc .uc { font: 700 20px var(--num); color: #ffd45a; }
+  .perkc:disabled { cursor: not-allowed; }
+  .perkc:disabled .uc { color: var(--bad); }
+  .perkc.own { border-color: var(--c); }
+  .perkc.own .uc { color: var(--c); font-size: 14px; letter-spacing: 1.5px; }
   .maps { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
   .mapc { pointer-events: auto; cursor: pointer; text-align: left; color: var(--txt); padding: 0; border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; font-family: inherit; transition: all .15s; }
   .mapc:hover { transform: translateY(-3px); }
@@ -418,6 +432,7 @@
   <div id="puGlow"></div>
   <div id="blind"></div>
   <div id="powerups"></div>
+  <div id="perks"></div>
 
   <div id="hpbox" class="glass">
     <div class="hprow">
@@ -1812,6 +1827,16 @@ function signMat(text, col = '#ffd45a', bg = '#10141b') {
 }
 
 // ============================================================ shop stations, placed on every map
+// perks sold by the vending machine between waves: permanent for the match, one of each
+const PERKS = {
+  tank:   { name: 'PELLE DURA',      tag: 'PD', css: '#ff6b5c', cost: 2500, desc: 'Subisci il 30% di danni in meno.' },
+  reload: { name: 'MANI SVELTE',     tag: 'MS', css: '#7dff8a', cost: 2000, desc: 'Ricarichi tutte le armi il 35% più in fretta.' },
+  rate:   { name: 'DOPPIO COLPO',    tag: 'DC', css: '#ffb347', cost: 2000, desc: 'Cadenza di fuoco +25% con ogni arma.' },
+  speed:  { name: 'GAMBE D’ACCIAIO', tag: 'GA', css: '#ffe45c', cost: 1500, desc: 'Ti muovi il 12% più veloce.' },
+  regen:  { name: 'SANGUE FREDDO',   tag: 'SF', css: '#6cd4ff', cost: 2000, desc: 'La vita inizia a rigenerarsi in metà tempo e al doppio della velocità.' },
+  loot:   { name: 'SCIACALLO',       tag: 'SC', css: '#c98bff', cost: 1500, desc: 'Guadagni il 30% di crediti in più da ogni uccisione.' },
+};
+let perks = {};
 // built facing local +z; the body is the only part with a collider
 function station(kind, x, z, ry) {
   const g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; B.root.add(g);
@@ -1832,12 +1857,34 @@ function station(kind, x, z, ry) {
     add(rbox(2.1, 0.56, 0.06, 0.02), mats.trim, 0, 2.78, -0.42);
     add(new THREE.PlaneGeometry(2, 0.5), signMat('BANCO ARMI', '#ffb36b'), 0, 2.78, -0.385).castShadow = false;
   }
+  if (kind === 'perks') {
+    // perk vending machine: tall cabinet with a glowing front showing the six bottles
+    const shell = new THREE.MeshStandardMaterial({ color: 0x3a1f5c, roughness: 0.35, metalness: 0.6 });
+    body = add(rbox(1.5, 2.3, 0.9, 0.08), shell, 0, 1.15, 0);
+    const [c, cg] = canvas(256); c.height = 384;
+    const gr = cg.createLinearGradient(0, 0, 0, 384); gr.addColorStop(0, '#2a1244'); gr.addColorStop(1, '#0c0616'); cg.fillStyle = gr; cg.fillRect(0, 0, 256, 384);
+    Object.values(PERKS).forEach((pk, i) => {
+      const bx = 44 + (i % 3) * 84, by = 96 + ((i / 3) | 0) * 130;
+      cg.fillStyle = 'rgba(255,255,255,.08)'; cg.fillRect(bx - 34, by + 62, 68, 6);
+      cg.shadowColor = pk.css; cg.shadowBlur = 16; cg.fillStyle = pk.css;
+      cg.fillRect(bx - 16, by, 32, 60); cg.fillRect(bx - 7, by - 22, 14, 24);
+      cg.shadowBlur = 0; cg.fillStyle = 'rgba(0,0,0,.45)'; cg.fillRect(bx - 16, by + 20, 32, 20);
+    });
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const front = new THREE.MeshStandardMaterial({ color: 0x050308, emissive: 0xffffff, emissiveMap: tex, emissiveIntensity: 1.3, roughness: 0.2 });
+    CITY.signs.push(front);
+    add(new THREE.PlaneGeometry(1.2, 1.7), front, 0, 1.35, 0.455).castShadow = false;
+    add(rbox(1.1, 0.22, 0.06, 0.02), mats.trim, 0, 0.3, 0.45);
+    for (const s of [-1, 1]) add(new THREE.CapsuleGeometry(0.03, 1.9, 4, 10), mats.neonBlue, s * 0.72, 1.2, 0.46);
+    add(rbox(1.6, 0.5, 0.5, 0.05), shell, 0, 2.55, 0.1);
+    add(new THREE.PlaneGeometry(1.4, 0.35), signMat('PERK', '#d9a8ff'), 0, 2.55, 0.36).castShadow = false;
+  }
   g.updateMatrixWorld(true);
   B.meshes.push(body); B.boxes.push(new THREE.Box3().setFromObject(body));
   B[kind] = new V3(x, 0, z);
 }
-B = MAPS.arena; station('bench', 8, 38.9, Math.PI);
-B = MAPS.city; station('bench', -39.2, 19.5, Math.PI / 2);
+B = MAPS.arena; station('bench', 8, 38.9, Math.PI); station('perks', -8, -38.9, 0);
+B = MAPS.city; station('bench', -39.2, 19.5, Math.PI / 2); station('perks', 38.9, -17.5, -Math.PI / 2);
 
 // ============================================================ atmosphere per mode
 const ATMOS = {
@@ -2958,7 +3005,7 @@ let upg = {};
 const upgLv = (k, t) => upg[k]?.[t] || 0;
 const magOf = k => Math.round(WEAPONS[k].magSize * (1 + 0.25 * upgLv(k, 'mag')));
 const dmgMul = k => 1 + 0.2 * upgLv(k, 'dmg');
-const reloadOf = (k = weapon.current) => WEAPONS[k].reload * (1 - 0.15 * upgLv(k, 'rel'));
+const reloadOf = (k = weapon.current) => WEAPONS[k].reload * (1 - 0.15 * upgLv(k, 'rel')) * (perks.reload ? 0.65 : 1);
 const weapon = {
   current: primary, last: 'pistol', mags: { [primary]: WEAPONS[primary].magSize, pistol: 12 },
   reloading: false, reloadT: 0, cooldown: 0, bloom: 0, kick: 0, recoilOff: 0, flashT: 0, adsT: 0, slideKick: 0,
@@ -3122,6 +3169,7 @@ function damagePlayer(amount, from, raw = false) {
   if (state !== 'playing') return;
   if (pw('god')) { player.shake = Math.min(1, player.shake + 0.1); sfxTone(1400, 0.06, 0.08, 'triangle', 1900); return; }
   if (!raw) amount *= D.dmg;
+  if (perks.tank) amount *= 0.7;
   if (player.armor > 0) {
     const absorbed = Math.min(player.armor, amount * 0.7);
     player.armor -= absorbed; amount -= absorbed;
@@ -3154,7 +3202,7 @@ function updatePlayer(dt) {
   player.sprintT = clamp(player.sprintT + (sprint ? 1 : -1) * dt * 7, 0, 1);
   player.crouchT = clamp(player.crouchT + (player.crouch ? 1 : -1) * dt * 7, 0, 1);
   const A = arena.on;
-  const speed = (sprint ? 8.5 : 5.5) * (A ? 1.1 : 1) * (weapon.adsT > 0.5 ? 0.6 : 1) * lerp(1, 0.5, player.crouchT) * (W().speed || 1) * (pw('haste') ? 1.4 : 1);
+  const speed = (sprint ? 8.5 : 5.5) * (A ? 1.1 : 1) * (weapon.adsT > 0.5 ? 0.6 : 1) * lerp(1, 0.5, player.crouchT) * (W().speed || 1) * (pw('haste') ? 1.4 : 1) * (perks.speed ? 1.12 : 1);
   if (player.onGround) {
     player.vel.x += (wish.x * speed - player.vel.x) * Math.min(1, 12 * dt);
     player.vel.z += (wish.z * speed - player.vel.z) * Math.min(1, 12 * dt);
@@ -3194,7 +3242,7 @@ function updatePlayer(dt) {
   } else player.onGround = false;
   tryJumpPad();
 
-  if (now - player.lastHit > D.regenDelay) player.hp = Math.min(100, player.hp + D.regen * dt);
+  if (now - player.lastHit > D.regenDelay * (perks.regen ? 0.5 : 1)) player.hp = Math.min(100, player.hp + D.regen * (perks.regen ? 2 : 1) * dt);
 
   // camera: head bob, strafe roll, landing dip, shake
   const hs = Math.hypot(player.vel.x, player.vel.z);
@@ -3266,7 +3314,7 @@ function castShot(origin, dir, w, agg) {
 function shoot() {
   const w = W();
   if (!pw('ammo')) weapon.mags[weapon.current]--;
-  weapon.cooldown = w.rate * (pw('haste') ? 0.75 : 1);
+  weapon.cooldown = w.rate * (pw('haste') ? 0.75 : 1) * (perks.rate ? 0.8 : 1);
   shotsFired++;
   rumble(w.pellets || w.projectile ? 0.55 : w.scope ? 0.7 : 0.18, 0.4, w.scope || w.pellets ? 120 : 60);
   camera.updateMatrixWorld();
@@ -3572,7 +3620,7 @@ class Enemy {
     kills++;
     if (head) headshots++;
     const pts = this.points[weaponKey === 'knife' || weaponKey === 'tknife' ? 2 : head ? 1 : 0];
-    score += Math.round(pts * D.score); addCash(Math.round(pts * D.score));
+    score += Math.round(pts * D.score); addCash(Math.round(pts * D.score * (perks.loot ? 1.3 : 1)));
     addKillfeed(this.name, head, weaponKey);
     spawnParticles(this.pos.clone().setY(1.2), this.sparkColor, 20, null, 5);
     spawnSmoke(this.pos.clone().setY(1.2), 0x555555, 1.4);
@@ -5272,6 +5320,7 @@ function drawMinimap() {
     ctx.fillRect(bp.x - 1, bp.z - 1, 2, 2);
   }
   if (MAP.bench) { ctx.fillStyle = '#ff9d5c'; ctx.beginPath(); ctx.arc(MAP.bench.x, MAP.bench.z, 1.1, 0, Math.PI * 2); ctx.fill(); }
+  if (MAP.perks) { ctx.fillStyle = '#c98bff'; ctx.globalAlpha = waveBreak > 0 ? 1 : 0.45; ctx.beginPath(); ctx.arc(MAP.perks.x, MAP.perks.z, 1.1, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1; }
   ctx.restore();
   // enemies: clamp far ones to the rim so you always know where they come from
   for (const b of enemies) {
@@ -5304,7 +5353,7 @@ function interactTarget() {
     if (dd < bd && Math.abs(player.pos.y - d.pos.y) < 1.2) { best = d; bd = dd; }
   }
   if (best) return { type: 'drop', drop: best };
-  if (MAP.bench && Math.hypot(player.pos.x - MAP.bench.x, player.pos.z - MAP.bench.z) < 2.6 && player.pos.y < 1.5) return { type: 'bench' };
+  for (const type of ['bench', 'perks']) if (MAP[type] && Math.hypot(player.pos.x - MAP[type].x, player.pos.z - MAP[type].z) < 2.6 && player.pos.y < 1.5) return { type };
   return null;
 }
 function interact() {
@@ -5312,6 +5361,10 @@ function interact() {
   if (!t) return;
   if (t.type === 'drop') return pickupDrop(t.drop);
   if (t.type === 'bench') return openShop('bench');
+  if (t.type === 'perks') {
+    if (waveBreak > 0) return openShop('perks');
+    sfxTone(220, 0.15, 0.12, 'square', 160); toast('APERTO SOLO TRA UN’ONDATA E L’ALTRA', 'pu', 'coin', '#c98bff'); return;
+  }
   if (box.state === 'offer') return takeBoxWeapon();
   if (cash < BOX_COST) { sfxTone(220, 0.15, 0.12, 'square', 160); toast('CREDITI INSUFFICIENTI', 'pu', 'coin', '#ff8a7a'); return; }
   addCash(-BOX_COST); openBox();
@@ -5323,6 +5376,7 @@ function updateInteract() {
   if (t?.type === 'box' && box.state === 'idle') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Cassa misteriosa · arma casuale</span><span class="price${cash < BOX_COST ? ' no' : ''}">${BOX_COST}</span>`;
   else if (t?.type === 'box') { const r = rarityOf(box.choice); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Prendi <b>${WEAPONS[box.choice].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
   else if (t?.type === 'bench') html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Banco armi · potenzia danno, caricatore e ricarica</span>`;
+  else if (t?.type === 'perks') html = waveBreak > 0 ? `<kbd>${keyLabel('E', 'X')}</kbd><span>Distributore · compra un perk</span>` : `<span>Distributore di perk · apre tra un’ondata e l’altra</span>`;
   else if (t) { const r = rarityOf(t.drop.key); html = `<kbd>${keyLabel('E', 'X')}</kbd><span>Raccogli <b>${WEAPONS[t.drop.key].name}</b></span><span class="rar" style="color:${r.css}">${r.name}</span>`; }
   if (html !== promptKey) { promptKey = html; el.innerHTML = html; el.classList.toggle('on', !!html); }
 }
@@ -5337,7 +5391,7 @@ function resetArsenal() {
   while (drops.length) removeDrop(drops[0]);
   Object.assign(equip, EQUIP_START);
   slots = [primary, 'pistol']; renderSlots();
-  upg = {};
+  upg = {}; perks = {}; renderPerks();
   cash = 0; addCash(500);
   placeBox(true);
   promptKey = ''; $('prompt').classList.remove('on');
@@ -5428,7 +5482,7 @@ function updateHUD(dt) {
   hud$.hplag.style.width = hudLagHp + '%';
   hud$.hpbox.classList.toggle('low', hp < 35);
   hud$.hpbox.classList.toggle('noarmor', ar <= 0);
-  hud$.regen.classList.toggle('on', hp < 100 && now - player.lastHit > D.regenDelay);
+  hud$.regen.classList.toggle('on', hp < 100 && now - player.lastHit > D.regenDelay * (perks.regen ? 0.5 : 1));
   hud$.stance.classList.toggle('on', player.crouch);
   hud$.armorval.textContent = ar;
   hud$.armorfill.style.width = ar + '%';
@@ -5626,8 +5680,10 @@ function openShop(kind) {
   setMusic('pause');
   $('scope').classList.remove('on');
   $('shopTag').textContent = `${WORD().wave} ${wave}`;
-  $('shopTitle').textContent = 'BANCO ARMI';
-  $('shopSub').textContent = 'Spendi i crediti per potenziare le armi che hai con te. I potenziamenti restano su quell’arma per tutta la partita, anche se la lasci a terra e la riprendi.';
+  $('shopTitle').textContent = kind === 'perks' ? 'DISTRIBUTORE DI PERK' : 'BANCO ARMI';
+  $('shopSub').textContent = kind === 'perks'
+    ? 'Abilità permanenti per tutta la partita, una per tipo. Il distributore apre solo tra un’ondata e l’altra: il conto alla rovescia è fermo finché resti qui.'
+    : 'Spendi i crediti per potenziare le armi che hai con te. I potenziamenti restano su quell’arma per tutta la partita, anche se la lasci a terra e la riprendi.';
   renderShop();
   $('shop').classList.remove('hidden');
 }
@@ -5638,6 +5694,16 @@ function closeShop() {
 }
 function renderShop() {
   $('shopCash').textContent = cash;
+  if (shopKind === 'perks') {
+    $('shopGrid').innerHTML = Object.entries(PERKS).map(([k, pk]) => `
+      <button class="perkc glass${perks[k] ? ' own' : ''}" data-k="${k}" style="--c:${pk.css}" ${perks[k] || cash < pk.cost ? 'disabled' : ''}>
+        <span class="pt">${pk.tag}</span>
+        <span class="pi"><b>${pk.name}</b><small>${pk.desc}</small></span>
+        <span class="uc">${perks[k] ? 'ATTIVO' : pk.cost}</span>
+      </button>`).join('');
+    $('shopGrid').querySelectorAll('.perkc').forEach(b => b.addEventListener('click', () => buyPerk(b.dataset.k)));
+    return;
+  }
   $('shopGrid').innerHTML = slots.filter(Boolean).map(k => `
     <div class="shop-col glass">
       <div class="sw"><div class="ic">${ICONS[k] || ''}</div><div><div class="cn">${WEAPONS[k].name}</div><div class="wn">${k === weapon.current ? 'IN MANO' : 'DI RISERVA'}</div></div></div>
@@ -5661,6 +5727,18 @@ function buyUpgrade(k, t) {
   hudWeapon = null;
   withCat('ui', () => { sfxTone(520, 0.1, 0.1, 'triangle', 780); sfxTone(1040, 0.18, 0.08, 'triangle', 1560, 0.08); });
   renderShop();
+}
+function buyPerk(k) {
+  const pk = PERKS[k];
+  if (!pk || perks[k] || cash < pk.cost) return;
+  addCash(-pk.cost);
+  perks[k] = true;
+  withCat('ui', () => [1, 1.25, 1.5, 2].forEach((m, i) => sfxTone(392 * m, 0.22, 0.09, 'triangle', 392 * m, i * 0.07)));
+  renderPerks(); renderShop();
+}
+// owned perks, shown as small tags next to the health box
+function renderPerks() {
+  $('perks').innerHTML = Object.keys(PERKS).filter(k => perks[k]).map(k => `<span style="--c:${PERKS[k].css}" title="${PERKS[k].name}">${PERKS[k].tag}</span>`).join('');
 }
 $('shopClose').addEventListener('click', closeShop);
 addEventListener('keydown', e => {
@@ -5992,7 +6070,7 @@ function defaultFocus(layer) {
   if (layer.id === 'quitDlg') return $('quitNo');
   if (layer.id === 'classMenu') return layer.querySelector('.cls.sel') || $('startBtn');
   if (layer.id === 'mapMenu') return layer.querySelector('.mapc.sel') || $('mapNext');
-  if (layer.id === 'shop') return layer.querySelector('.upg:not(:disabled)') || $('shopClose');
+  if (layer.id === 'shop') return layer.querySelector('.upg:not(:disabled), .perkc:not(:disabled)') || $('shopClose');
   if (layer.id === 'settings') return $('settingsClose');
   return $('play');
 }
