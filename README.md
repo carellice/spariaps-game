@@ -18,6 +18,14 @@
 
 **Tag popolari:** `FPS` `Arena Shooter` `Zombie` `Ondate` `Boss` `Frenetico` `Movimento veloce` `Loot` `Gratis` `Supporto controller`
 
+<p align="center">
+  <img src="screenshots/piazza.jpg" width="49%" alt="Modalità Classica: bot nella piazza del Quartiere">
+  <img src="screenshots/zombie-notte.jpg" width="49%" alt="Modalità Zombie: l'orda all'incrocio di notte">
+</p>
+<p align="center">
+  <img src="screenshots/farmacia.jpg" width="70%" alt="Dentro la farmacia: gli zombie entrano da porte e finestre">
+</p>
+
 ---
 
 ## INFORMAZIONI SUL GIOCO
@@ -188,6 +196,7 @@ Spariaps/
 ├── Spariaps-icona.png → logo del gioco
 ├── index.html        → il gioco completo
 ├── vendor/           → motore grafico three.js, incluso nel gioco
+├── screenshots/      → immagini di gioco per questa pagina
 └── Music/            → colonna sonora (brani del menu e loop di gioco)
 ```
 
