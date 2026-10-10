@@ -153,7 +153,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 | **Scheda video** | Grafica integrata con WebGL 2 | GPU dedicata o Apple Silicon |
 | **Memoria** | 4 GB di RAM | 8 GB di RAM |
 | **Spazio su disco** | ~50 MB | ~50 MB |
-| **Rete** | Connessione al primo avvio, per caricare il motore grafico | Idem |
+| **Rete** | Non necessaria: il motore grafico è incluso (senza connessione cambiano solo i caratteri dell’interfaccia) | Idem |
 | **Note** | Qualità grafica **Bassa** consigliata | Qualità grafica **Alta** |
 
 ---
@@ -187,6 +187,7 @@ Spariaps/
 ├── Spariaps.app      → avvio con un doppio clic (macOS)
 ├── Spariaps-icona.png → logo del gioco
 ├── index.html        → il gioco completo
+├── vendor/           → motore grafico three.js, incluso nel gioco
 └── Music/            → colonna sonora (brani del menu e loop di gioco)
 ```
 

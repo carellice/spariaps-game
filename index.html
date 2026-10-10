@@ -697,23 +697,11 @@
 <div id="bye"><div><div class="ov-title">A PRESTO!</div><p>Puoi chiudere questa finestra (<kbd>⌘</kbd><kbd>W</kbd>).</p></div></div>
 
 <script src="Music/loops.js"></script>
-<script type="importmap">
-{ "imports": {
-  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-} }
-</script>
+<script src="vendor/three.bundle.js"></script>
 
 <script type="module">
-import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+// three.js and its addons ship with the game (vendor/three.bundle.js), so it also starts offline and from file://
+const { THREE, EffectComposer, RenderPass, UnrealBloomPass, OutputPass, ShaderPass, RoomEnvironment, RoundedBoxGeometry, mergeGeometries } = window.SPARIAPS_LIB;
 
 // ============================================================ utils
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
