@@ -217,6 +217,9 @@
   #subtitle { font-size: 16px; line-height: 1.55; color: var(--mut); max-width: 480px; }
   .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 24px; max-width: 600px; }
   .stats:empty { display: none; }
+  .career { grid-column: 1 / -1; padding: 12px 16px; border-radius: 14px; font-size: 13px; line-height: 1.7; color: var(--mut); }
+  .career b { color: var(--txt); font: 700 15px var(--num); }
+  .career .h { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; color: var(--accent2); margin-bottom: 2px; }
   .stat { padding: 12px 14px; border-radius: 14px; }
   .stat .v { font: 700 32px/1 var(--num); }
   .stat .v.hi { color: var(--accent2); }
@@ -3195,6 +3198,11 @@ const padMode = () => settings.input === 'pad';
 let firing = false, triggerQueued = false, triggerT = 0, aiming = false, swayX = 0, swayY = 0, throwCD = 0;
 let state = 'menu', menuType = 'main', now = 0, score = 0, kills = 0, headshots = 0, shotsFired = 0, shotsHit = 0, hurt = 0;
 const bestKey = () => `spariaps-best-${mode}-${diffKey}${MAP.key === 'arena' ? '' : '-' + MAP.key}`;
+// per-match counters for the end screen, and career totals kept between matches
+let earned = 0, spent = 0, bossKills = 0;
+const career = { games: 0, kills: 0, headshots: 0, bosses: 0, time: 0, bestWave: 0 };
+try { Object.assign(career, JSON.parse(store.get('spariaps-career', '{}'))); } catch {}
+const clockStr = t => { t = Math.floor(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(t % 60).padStart(2, '0')}`; };
 const getBest = () => parseInt(store.get(bestKey(), '0'), 10) || 0;
 
 addEventListener('keydown', e => {
@@ -5825,6 +5833,7 @@ function updateInteract() {
 }
 function addCash(n) {
   cash = Math.max(0, cash + n);
+  if (n > 0) earned += n; else spent -= n;
   const el = $('cash');
   el.textContent = cash;
   if (n > 0) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 300); }
@@ -5835,7 +5844,7 @@ function resetArsenal() {
   Object.assign(equip, EQUIP_START);
   slots = [primary, 'pistol']; renderSlots();
   upg = {}; perks = {}; revives = 1; renderPerks();
-  cash = 0; addCash(500);
+  cash = 0; addCash(500); earned = spent = bossKills = 0;
   placeBox(true);
   promptKey = ''; $('prompt').classList.remove('on');
 }
@@ -5869,6 +5878,7 @@ function bossDefeated(b) {
   // loot: health, armour and throwables around the body
   [['health', 1.6, 0], ['armor', -1.6, 0], ['equip', 0, 1.6], ['equip', 0, -1.6]].forEach(([t, ox, oz]) => pickups.push(new Pickup(t, b.pos.x + ox, b.pos.z + oz, true)));
   toast(`BOSS SCONFITTO · +${bonus} CREDITI`, 'pu', 'coin', '#ffd45a');
+  bossKills++;
   if (revives < MAX_REVIVES) { revives++; renderPerks(); setTimeout(() => toast('+1 SECONDA VITA', 'hp'), 900); }
 }
 function updateWaves(dt) {
@@ -6107,10 +6117,14 @@ function gameOver() {
   const best = getBest(), record = score > best;
   if (record) store.set(bestKey(), String(score));
   const acc = shotsFired ? Math.round(shotsHit / shotsFired * 100) : 0;
+  career.games++; career.kills += kills; career.headshots += headshots; career.bosses += bossKills; career.time += now; career.bestWave = Math.max(career.bestWave, wave);
+  store.set('spariaps-career', JSON.stringify(career));
   showMenu('dead', {
     title: 'SEI MORTO',
     sub: (record ? 'Nuovo record personale! ' : '') + `Modalità ${mode === 'zombie' ? 'Zombie' : 'Classica'} · ${D.name.toLowerCase()}.`,
-    stats: stat(wave, WORD().wave) + stat(kills, 'Uccisioni') + stat(score, 'Punti', record) + stat(acc + '%', 'Precisione') + stat(headshots, 'Headshot'),
+    stats: stat(wave, WORD().wave) + stat(kills, 'Uccisioni') + stat(score, 'Punti', record) + stat(acc + '%', 'Precisione') + stat(headshots, 'Headshot')
+      + stat(clockStr(now), 'Tempo') + stat(bossKills, 'Boss') + stat(earned, 'Crediti presi') + stat(spent, 'Crediti spesi')
+      + `<div class="career glass"><div class="h">CARRIERA</div><b>${career.games}</b> partite · <b>${career.kills}</b> uccisioni · <b>${career.headshots}</b> headshot · <b>${career.bosses}</b> boss · miglior ${WORD().wave.toLowerCase()} <b>${career.bestWave}</b> · tempo di gioco <b>${clockStr(career.time)}</b></div>`,
   });
 }
 
