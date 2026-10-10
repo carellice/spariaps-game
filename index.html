@@ -70,6 +70,8 @@
   .wavebox.break #waveSub { display: none; }
   .wavebox.break .brk { display: block; }
 
+  #fps { position: fixed; right: 8px; bottom: 6px; z-index: 60; font: 600 12px var(--num); letter-spacing: .5px; color: #9dffb0; text-shadow: 0 1px 2px #000; pointer-events: none; display: none; }
+  #fps.on { display: block; }
   #minimap { position: absolute; left: 16px; top: 72px; width: 180px; height: 180px; border-radius: 50%; padding: 0; }
   #bossbar { position: absolute; top: 112px; left: 50%; transform: translateX(-50%); width: min(460px, 60vw); padding: 10px 16px 12px; display: none; border-color: rgba(255,60,90,.45); box-shadow: 0 0 30px rgba(255,40,80,.25); }
   #bossbar.on { display: block; animation: puIn .4s ease-out; }
@@ -664,6 +666,11 @@
           </div>
         </div>
         <div class="set">
+          <div class="row" style="margin-bottom:0;align-items:center"><div><div class="nm">Contatore FPS</div><div class="hint">Fotogrammi al secondo nell’angolo in basso a destra</div></div>
+            <div class="optseg" id="fpsSeg"><button data-v="off">NASCONDI</button><button data-v="on">MOSTRA</button></div>
+          </div>
+        </div>
+        <div class="set">
           <div class="row" style="margin-bottom:0;align-items:center"><div><div class="nm">Schermo intero</div><div class="hint">Gioca a tutto schermo, senza barre del browser</div></div>
             <button id="fsBtn" class="btn2 fs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path class="on" d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/><path class="off" d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg><span>ATTIVA</span></button>
           </div>
@@ -686,6 +693,7 @@
   </div>
 </div>
 <div id="padNote" class="glass"></div>
+<div id="fps"></div>
 <div id="bye"><div><div class="ov-title">A PRESTO!</div><p>Puoi chiudere questa finestra (<kbd>⌘</kbd><kbd>W</kbd>).</p></div></div>
 
 <script src="Music/loops.js"></script>
@@ -776,7 +784,7 @@ if (mode !== 'zombie') mode = 'classic';
 let D = diffFor(1);
 
 const SETTINGS_DEFAULT = { lights: 1, bright: 1, sens: 1, adsHold: true, autoAds: false, quality: 'high',
-  input: 'kbm', padSens: 1, invertY: false, aimAssist: true,
+  input: 'kbm', padSens: 1, invertY: false, aimAssist: true, fps: false,
   volMaster: 1, volMusic: 0.7, volWeapons: 1, volEnemies: 1, volFx: 1, volUi: 0.8 };
 const settings = { ...SETTINGS_DEFAULT };
 try { Object.assign(settings, JSON.parse(store.get('spariaps-settings', '{}'))); } catch {}
@@ -6320,6 +6328,8 @@ function syncOptionUI() {
   $('qHint').textContent = (QUALITY[settings.quality] || QUALITY.high).hint;
   document.querySelectorAll('#invSeg button').forEach(b => b.classList.toggle('sel', (b.dataset.v === 'on') === !!settings.invertY));
   document.querySelectorAll('#assistSeg button').forEach(b => b.classList.toggle('sel', (b.dataset.v === 'on') === !!settings.aimAssist));
+  document.querySelectorAll('#fpsSeg button').forEach(b => b.classList.toggle('sel', (b.dataset.v === 'on') === !!settings.fps));
+  $('fps').classList.toggle('on', !!settings.fps);
   document.querySelectorAll('#inputSeg button').forEach(b => b.classList.toggle('sel', b.dataset.v === settings.input));
 }
 document.querySelectorAll('#adsSeg button').forEach(b => b.addEventListener('click', () => {
@@ -6498,6 +6508,7 @@ addEventListener('gamepaddisconnected', () => {
 document.querySelectorAll('#inputSeg button').forEach(b => b.addEventListener('click', () => setInput(b.dataset.v)));
 document.querySelectorAll('#invSeg button').forEach(b => b.addEventListener('click', () => { settings.invertY = b.dataset.v === 'on'; saveSettings(); syncOptionUI(); }));
 document.querySelectorAll('#assistSeg button').forEach(b => b.addEventListener('click', () => { settings.aimAssist = b.dataset.v === 'on'; saveSettings(); syncOptionUI(); }));
+document.querySelectorAll('#fpsSeg button').forEach(b => b.addEventListener('click', () => { settings.fps = b.dataset.v === 'on'; saveSettings(); syncOptionUI(); }));
 
 // ---------------------------------------------------------------- menu navigation with the pad
 let padFocus = null, padLayer = null;
@@ -6676,8 +6687,15 @@ showMainMenu();
 // otherwise the context stays suspended and unlockMusic resumes it on the first click/keypress
 initAudio();
 let padPlay = false;
+// optional frame counter: averaged over half a second so the number stays readable
+const fpsMeter = { t: performance.now(), n: 0 };
+$('fps').classList.toggle('on', !!settings.fps);
 renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.05);
+  if (settings.fps) {
+    const t = performance.now(); fpsMeter.n++;
+    if (t - fpsMeter.t >= 500) { $('fps').textContent = Math.round(fpsMeter.n * 1000 / (t - fpsMeter.t)) + ' FPS'; fpsMeter.t = t; fpsMeter.n = 0; }
+  }
   pollPad(dt);
   const pp = state === 'playing' && padMode() && !document.pointerLockElement;
   if (pp !== padPlay) { padPlay = pp; document.body.classList.toggle('padplay', pp); }
