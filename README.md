@@ -205,7 +205,9 @@ Spariaps/
 ├── Spariaps.ico      → icona per il collegamento su Windows
 ├── Spariaps.app      → avvio con un doppio clic (macOS)
 ├── Spariaps-icona.png → logo del gioco
-├── index.html        → il gioco completo
+├── index.html        → la pagina del gioco (menu e interfaccia)
+├── css/              → stili dell'interfaccia
+├── js/               → codice del gioco, diviso per argomento (mappe, armi, nemici, menu…)
 ├── vendor/           → motore grafico three.js, incluso nel gioco
 ├── screenshots/      → immagini di gioco per questa pagina
 └── Music/            → colonna sonora (brani del menu e loop di gioco)
