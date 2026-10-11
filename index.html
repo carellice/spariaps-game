@@ -723,7 +723,6 @@
 <div id="fps"></div>
 <div id="bye"><div><div class="ov-title">A PRESTO!</div><p>Puoi chiudere questa finestra (<kbd>⌘</kbd><kbd>W</kbd>).</p></div></div>
 
-<script src="Music/loops.js"></script>
 <script src="vendor/three.bundle.js"></script>
 
 <script type="module">
@@ -5190,13 +5189,23 @@ function playSong(key) {
   }
   if (music.song.paused) music.song.play().catch(() => { music.blocked = true; });
 }
+// each loop lives in its own script (Music/loop-<mode>.js), fetched the first time it is needed instead of at page load
+const loopData = {};
+function loopScript(key) {
+  return loopData[key] ||= new Promise((res, rej) => {
+    const el = document.createElement('script'); el.src = `Music/loop-${key}.js`;
+    el.onload = () => res(window.SPARIAPS_LOOPS?.[key]); el.onerror = () => { delete loopData[key]; rej(); };
+    document.head.appendChild(el);
+  });
+}
 function loopBuffer(key) {
   if (music.buffers[key]) return music.buffers[key];
-  const b64 = window.SPARIAPS_LOOPS?.[key];
-  if (!b64 || !actx) return null;
-  const bin = atob(b64), bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return music.buffers[key] = actx.decodeAudioData(bytes.buffer);
+  if (!actx) return null;
+  return music.buffers[key] = loopScript(key).then(b64 => {
+    const bin = atob(b64), bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return actx.decodeAudioData(bytes.buffer);
+  }).catch(() => { delete music.buffers[key]; return null; });
 }
 function stopLoop(fade = 0.8) {
   if (!music.loopSrc) { music.loopKey = null; return; }
@@ -5213,6 +5222,7 @@ async function startLoop(key) {
   const p = loopBuffer(key);
   if (!p) return;
   const buf = await p;
+  if (!buf) return;
   if (music.loopKey !== key || music.want !== 'game' && music.want !== 'pause') return;
   const src = actx.createBufferSource(); src.buffer = buf; src.loop = true;
   const g = actx.createGain(); g.gain.value = 0;
@@ -5228,7 +5238,8 @@ function setLoopDuck(v) {
 // scene: 'menu' (song of the selected mode), 'game' (loop), 'pause' (loop, quieter)
 function setMusic(scene) {
   music.want = scene;
-  if (scene === 'menu') { if (actx) stopLoop(); playSong(mode); }
+  // while you are in the menu, fetch the loop of the selected mode so it is ready when the match starts
+  if (scene === 'menu') { if (actx) stopLoop(); playSong(mode); const m = mode; setTimeout(() => { if (music.want === 'menu' && mode === m) loopScript(m).catch(() => {}); }, 1500); }
   else if (scene === 'game') { music.duck = 1; startLoop(mode); }
   else if (scene === 'pause') setLoopDuck(0.35);
 }
