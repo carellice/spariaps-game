@@ -5,6 +5,8 @@
 > **Sparatutto arena in prima persona · Ondate · Zombie · Boss**
 > Salta, spara, sopravvivi. Un FPS frenetico che gira direttamente nel browser, senza installare nulla.
 
+### ▶️ [GIOCA ORA NEL BROWSER](https://carellice.github.io/spariaps-game/)
+
 |  |  |
 |---|---|
 | **Prezzo** | 🟢 **GRATIS** |
@@ -167,6 +169,10 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 ---
 
 ## COME GIOCARE
+
+**Online:** apri [carellice.github.io/spariaps-game](https://carellice.github.io/spariaps-game/), non serve scaricare nulla. La musica parte dopo il primo clic.
+
+**Sul tuo computer:**
 
 1. Avvia il gioco con un doppio clic. Parte in una finestra dedicata, con la musica già attiva:
    - **Windows:** apri **`Spariaps.bat`**. Usa Google Chrome oppure Microsoft Edge, già presente in Windows 10/11.
