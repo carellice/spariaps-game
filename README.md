@@ -60,7 +60,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 - ⚡ **5 bonus a tempo:** Super salto, Velocità, Munizioni infinite, Danno x3, Invulnerabile.
 - 💥 **Esplosioni spettacolari:** palla di fuoco a strati, onda d'urto, detriti che rimbalzano, colonne di fumo e bruciature sul terreno.
 - 🎮 **Supporto controller completo:** rilevamento automatico, vibrazione, aiuto alla mira, simboli Xbox o PlayStation e menu navigabili col pad.
-- 🎵 **Colonna sonora originale** con brani dedicati a ogni modalità e loop senza interruzioni durante la partita.
+- 🎵 **Colonna sonora originale** (generata con l'IA) con brani dedicati a ogni modalità e loop senza interruzioni durante la partita.
 - 🗺️ **Minimappa, danni a schermo, killfeed e 5 livelli di difficoltà**, dalla Facile alla Progressiva.
 
 ---
@@ -199,6 +199,13 @@ Spariaps/
 ├── screenshots/      → immagini di gioco per questa pagina
 └── Music/            → colonna sonora (brani del menu e loop di gioco)
 ```
+
+---
+
+## CREDITI
+
+- **Musica:** i brani *Classica* e *Zombie* sono stati generati con l'intelligenza artificiale tramite [Suno](https://suno.com), con un piano a pagamento che ne consente l'uso. I loop di gioco sono ritagli degli stessi brani, preparati con Audjust.
+- **Motore grafico:** [three.js](https://threejs.org) r160, licenza MIT (`vendor/three.LICENSE`).
 
 ---
 
