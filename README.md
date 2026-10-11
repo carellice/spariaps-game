@@ -13,7 +13,7 @@
 | **Genere** | Azione, Sparatutto, FPS, Arena, Sopravvivenza a ondate |
 | **Sviluppatore** | Flavio Cecca |
 | **Editore** | Flavio Cecca |
-| **Piattaforma** | Windows · macOS · qualsiasi browser moderno |
+| **Piattaforma** | Windows · macOS · qualsiasi browser moderno · telefoni e tablet (comandi touch) |
 | **Modalità** | Giocatore singolo |
 | **Supporto controller** | ✅ Completo (Xbox e PlayStation) |
 | **Lingua** | Italiano (interfaccia, testi) |
@@ -60,6 +60,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 - 🔫 **13 armi**, ognuna con modello, suono e sistema di mira dedicati: tacche metalliche, red dot, olografici e ottiche.
 - 🧍 **5 classi**, ognuna con arma principale e bonus unici. Puoi cambiarla a partita in corso, per un massimo di 2 volte.
 - 💣 **Equipaggiamento da lancio:** granate a frammentazione, stordenti, fumogeni che bloccano la visuale dei nemici e coltelli da lancio.
+- 📱 **Comandi touch:** su telefono e tablet compaiono levetta, trascinamento per la visuale e pulsanti a schermo, con grafica alleggerita e mira automatica.
 - 🏃 **Scivolata e scavalcamento:** accucciati mentre corri per scivolare; correndo contro casse, cofani e davanzali li scavalchi al volo.
 - 🪖 **Sporgersi alla Rainbow Six Siege:** mentre miri, sbuca di lato dalle coperture senza esporti.
 - ⚡ **5 bonus a tempo:** Super salto, Velocità, Munizioni infinite, Danno x3, Invulnerabile.

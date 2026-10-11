@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Spariaps</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -77,6 +77,32 @@
   .bind button:hover, .bind button.pfocus { border-color: var(--accent2); }
   .bind button.wait { background: rgba(255,107,61,.25); border-color: var(--accent); color: var(--accent2); }
   .bind .na { text-align: center; color: var(--mut); }
+  /* touch controls: phones and tablets */
+  #touch { position: fixed; inset: 0; z-index: 8; display: none; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #touch.on { display: block; }
+  body.touch { overscroll-behavior: none; }
+  body.touch canvas { touch-action: none; }
+  @media (max-height: 520px) { #mtitle { font-size: 44px !important; line-height: 1 !important; } #subtitle { display: none; } .ov-title { font-size: 34px !important; } .ov-sub { display: none; } }
+  body.touch #hud { zoom: .62; }
+  body.touch #menu, body.touch .overlay { padding: 16px; }
+  .tb { position: absolute; width: 62px; height: 62px; border-radius: 50%; display: grid; place-items: center; font: 700 12px var(--num); letter-spacing: .5px; color: #fff;
+    background: rgba(20,26,36,.45); border: 1.5px solid rgba(255,255,255,.35); backdrop-filter: blur(4px); }
+  .tb.on { background: rgba(255,107,61,.55); border-color: #ffb38a; }
+  .tb.fire { width: 86px; height: 86px; right: max(26px, env(safe-area-inset-right)); bottom: 104px; background: rgba(255,74,43,.5); border-color: #ff9a7a; font-size: 14px; }
+  .tb.aim { right: 200px; bottom: 30px; }
+  .tb.jump { right: 30px; bottom: 204px; }
+  .tb.reload { right: 122px; bottom: 112px; }
+  .tb.crouch { right: 276px; bottom: 16px; }
+  .tb.swap { right: 206px; bottom: 106px; }
+  .tb.melee { right: 116px; bottom: 190px; }
+  .tb.sm { width: 46px; height: 46px; font-size: 10px; top: 64px; }
+  .tb.pause { right: max(14px, env(safe-area-inset-right)); top: 10px; width: 44px; height: 44px; }
+  .tb.skip { left: 50%; top: 74px; transform: translateX(-50%); width: auto; height: 34px; padding: 0 16px; border-radius: 17px; display: none; }
+  .tb.skip.show { display: grid; }
+  #tStick { position: absolute; width: 116px; height: 116px; margin: -58px 0 0 -58px; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.3); background: rgba(20,26,36,.3); display: none; }
+  #tStick i { position: absolute; left: 50%; top: 50%; width: 50px; height: 50px; margin: -25px 0 0 -25px; border-radius: 50%; background: rgba(255,255,255,.45); }
+  #rotate { position: fixed; inset: 0; z-index: 70; display: none; place-items: center; text-align: center; padding: 30px; background: #0b0f16; color: var(--txt); font: 700 22px var(--num); letter-spacing: 1px; }
+  @media (orientation: portrait) { body.touch #rotate { display: grid; } }
   #fps { position: fixed; right: 8px; bottom: 6px; z-index: 60; font: 600 12px var(--num); letter-spacing: .5px; color: #9dffb0; text-shadow: 0 1px 2px #000; pointer-events: none; display: none; }
   #fps.on { display: block; }
   #minimap { position: absolute; left: 16px; top: 72px; width: 180px; height: 180px; border-radius: 50%; padding: 0; }
@@ -763,6 +789,23 @@
 </div>
 <div id="padNote" class="glass"></div>
 <div id="fps"></div>
+<div id="touch">
+  <div id="tStick"><i></i></div>
+  <div class="tb fire" data-a="fire">SPARA</div>
+  <div class="tb aim" data-a="aim">MIRA</div>
+  <div class="tb jump" data-a="jump">SALTA</div>
+  <div class="tb reload" data-a="reload">RIC · USA</div>
+  <div class="tb crouch" data-a="crouch">GIÙ</div>
+  <div class="tb swap" data-a="swap">ARMA</div>
+  <div class="tb melee" data-a="melee">LAMA</div>
+  <div class="tb sm" data-a="frag" style="right:176px">GRAN</div>
+  <div class="tb sm" data-a="stun" style="right:124px">STOR</div>
+  <div class="tb sm" data-a="smoke" style="right:72px">FUMO</div>
+  <div class="tb sm" data-a="tknife" style="right:20px">COLT</div>
+  <div class="tb pause" data-a="pause">II</div>
+  <div class="tb skip" data-a="skip">AVVIA L’ONDATA ▶▶</div>
+</div>
+<div id="rotate">Ruota il telefono in orizzontale per giocare</div>
 <div id="bye"><div><div class="ov-title">A PRESTO!</div><p>Puoi chiudere questa finestra (<kbd>⌘</kbd><kbd>W</kbd>).</p></div></div>
 
 <script src="vendor/three.bundle.js"></script>
@@ -3396,6 +3439,86 @@ addEventListener('keydown', e => {
 }, true);
 // controller state read by the gameplay code (filled by pollPad every frame)
 const pad = { mx: 0, my: 0, jump: false, sprint: false };
+// ---------------------------------------------------------------- touch controls (phones and tablets)
+// Left side of the screen: a stick that appears where you put your thumb. Right side: drag to look. Buttons do the rest.
+// The stick writes into the same `pad` state the controller uses.
+let touchMode = false;
+const TOUCH_LABELS = { E: 'RIC · USA', R: 'RIC · USA', INVIO: 'AVVIA L’ONDATA', 'Clic SX': 'SPARA', 'Clic DX': 'MIRA', Shift: 'levetta in fondo', Spazio: 'SALTA', C: 'GIÙ' };
+const tch = { stick: null, look: new Map(), ox: 0, oy: 0 };
+function enableTouch() {
+  if (touchMode) return;
+  touchMode = true; document.body.classList.add('touch');
+  // first time on a touch device: lighter graphics and automatic aiming while shooting
+  if (store.get('spariaps-touch', '0') !== '1') { store.set('spariaps-touch', '1'); settings.quality = 'low'; settings.autoAds = true; saveSettings(); applyQuality(); }
+  promptKey = '';
+}
+addEventListener('touchstart', enableTouch, { passive: true });
+function touchAction(a, down, el) {
+  if (state !== 'playing') return;
+  if (a === 'fire') { firing = down; if (down) { triggerQueued = true; triggerT = now; } }
+  else if (a === 'jump') { pad.jump = down; if (down) gameKey('Space'); }
+  if (a !== 'aim') el.classList.toggle('on', down);
+  if (!down) return;
+  if (a === 'aim') { aiming = !aiming; el.classList.toggle('on', aiming); }
+  else if (a === 'reload') { if (interactTarget()) interact(); else startReload(); }
+  else if (a === 'crouch') gameKey('KeyC');
+  else if (a === 'swap') switchWeapon(otherSlot());
+  else if (a === 'melee') startMelee();
+  else if (a === 'pause') pause();
+  else if (a === 'skip') gameKey('Enter');
+  else if (a === 'frag' || a === 'stun' || a === 'smoke' || a === 'tknife') throwItem(a);
+}
+{
+  const layer = $('touch'), stick = $('tStick'), knob = stick.firstElementChild;
+  layer.addEventListener('touchstart', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      const b = t.target.closest?.('[data-a]');
+      if (b) { touchAction(b.dataset.a, true, b); if (b.dataset.a === 'fire') tch.look.set(t.identifier, [t.clientX, t.clientY, b]); else tch.look.set(t.identifier, [null, null, b]); }
+      else if (t.clientX < innerWidth * 0.42 && tch.stick === null) {
+        tch.stick = t.identifier; tch.ox = t.clientX; tch.oy = t.clientY;
+        stick.style.display = 'block'; stick.style.left = t.clientX + 'px'; stick.style.top = t.clientY + 'px'; knob.style.transform = '';
+      } else tch.look.set(t.identifier, [t.clientX, t.clientY, null]);
+    }
+  }, { passive: false });
+  layer.addEventListener('touchmove', e => {
+    e.preventDefault();
+    for (const t of e.changedTouches) {
+      if (t.identifier === tch.stick) {
+        let dx = (t.clientX - tch.ox) / 52, dy = (t.clientY - tch.oy) / 52; const m = Math.hypot(dx, dy);
+        if (m > 1) { dx /= m; dy /= m; }
+        pad.mx = Math.abs(dx) < 0.12 ? 0 : dx; pad.my = Math.abs(dy) < 0.12 ? 0 : -dy; pad.sprint = pad.my > 0.9;
+        knob.style.transform = `translate(${dx * 40}px, ${dy * 40}px)`;
+      } else {
+        const l = tch.look.get(t.identifier);
+        if (!l || l[0] === null || state !== 'playing') continue;
+        const k = 0.0052 * settings.sens * (weapon.adsT > 0.5 ? (W().scope ? 0.28 : 0.6) : 1), dx = t.clientX - l[0], dy = t.clientY - l[1];
+        player.yaw -= dx * k; player.pitch = clamp(player.pitch - dy * k, -1.5, 1.5);
+        swayX += dx * 0.0003; swayY += dy * 0.0003;
+        l[0] = t.clientX; l[1] = t.clientY;
+      }
+    }
+  }, { passive: false });
+  const end = e => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === tch.stick) { tch.stick = null; pad.mx = pad.my = 0; pad.sprint = false; stick.style.display = 'none'; }
+      const l = tch.look.get(t.identifier);
+      if (l) { if (l[2]) touchAction(l[2].dataset.a, false, l[2]); tch.look.delete(t.identifier); }
+    }
+  };
+  layer.addEventListener('touchend', end); layer.addEventListener('touchcancel', end);
+}
+// shown only while playing; the skip button appears during the break between waves
+function updateTouchUi() {
+  if (!touchMode) return;
+  const on = state === 'playing';
+  const layer = $('touch');
+  if (layer.classList.contains('on') !== on) {
+    layer.classList.toggle('on', on);
+    if (!on) { tch.stick = null; tch.look.clear(); pad.mx = pad.my = 0; pad.jump = pad.sprint = false; firing = false; $('tStick').style.display = 'none'; layer.querySelectorAll('.tb.on').forEach(b => b.classList.remove('on')); }
+  }
+  if (on) { layer.querySelector('.skip').classList.toggle('show', wave > 0 && waveBreak > 3); layer.querySelector('.aim').classList.toggle('on', aiming); }
+}
 const padMode = () => settings.input === 'pad';
 let firing = false, triggerQueued = false, triggerT = 0, aiming = false, swayX = 0, swayY = 0, throwCD = 0;
 let state = 'menu', menuType = 'main', now = 0, score = 0, kills = 0, headshots = 0, shotsFired = 0, shotsHit = 0, hurt = 0;
@@ -3529,7 +3652,7 @@ function pauseGame() {
 }
 addEventListener('keyup', e => { keys[logical(e.code)] = false; });
 addEventListener('blur', () => { firing = aiming = false; for (const k in keys) keys[k] = false; });
-const mouseOff = () => padMode() && !document.pointerLockElement;
+const mouseOff = () => touchMode || padMode() && !document.pointerLockElement;
 addEventListener('mousedown', e => {
   if (state !== 'playing' || mouseOff()) return;
   // ctrl+click counts as right click (Mac trackpads)
@@ -3538,6 +3661,7 @@ addEventListener('mousedown', e => {
   else if (e.button === 0) { firing = true; triggerQueued = true; triggerT = now; }
 });
 addEventListener('mouseup', e => {
+  if (touchMode) return;
   if (e.button === 0) firing = false;
   if ((e.button === 2 || (e.button === 0 && e.ctrlKey)) && settings.adsHold) aiming = false;
 });
@@ -6424,6 +6548,7 @@ function beginPlay() {
 }
 let lockFails = 0;
 function enterGame() {
+  if (touchMode) { document.documentElement.requestFullscreen?.().catch(() => {}); return beginPlay(); }
   // controller: no pointer lock needed (falls back to mouse lock when no pad is actually connected)
   if (padMode() && activePad()) { if (document.pointerLockElement) document.exitPointerLock(); return beginPlay(); }
   let p;
@@ -6461,7 +6586,7 @@ $('lockClose').addEventListener('click', () => $('locker').classList.add('hidden
 // ---------------------------------------------------------------- first-match tutorial: a few hints, each ticked off by doing what it says
 const K = (kb, btn) => `<kbd>${keyLabel(kb, btn)}</kbd>`;
 const TUT = [
-  { h: () => padMode() && activePad() ? `Muoviti con lo stick sinistro e guardati intorno con il destro` : `Muoviti con ${K('W')}${K('A')}${K('S')}${K('D')} e guardati intorno con il mouse`, ok: () => tut.moved > 4 },
+  { h: () => touchMode ? `Muoviti con il pollice sinistro e guardati intorno trascinando a destra` : padMode() && activePad() ? `Muoviti con lo stick sinistro e guardati intorno con il destro` : `Muoviti con ${K('W')}${K('A')}${K('S')}${K('D')} e guardati intorno con il mouse`, ok: () => tut.moved > 4 },
   { h: () => `Spara con ${K('Clic SX', 'RT')} · mira con ${K('Clic DX', 'LT')}`, ok: () => shotsFired > 0 },
   { h: () => `Ricarica con ${K('R', 'X')} prima di restare a secco`, ok: () => weapon.reloading },
   { h: () => `Corri con ${K('Shift', 'L3')} · salta con ${K('Spazio', 'A')}`, ok: () => tut.ran && tut.jumped },
@@ -6841,6 +6966,7 @@ const PL = () => PAD_LABELS[padStyle];
 const LABEL_ACT = { E: 'interact', R: 'reload', INVIO: 'skip', W: 'fwd', A: 'left', S: 'back', D: 'right', Shift: 'sprint', Spazio: 'jump', C: 'crouch' };
 const padBtn = btn => { const i = PAD_NAMES.indexOf(btn); return PL()[i < 0 ? btn : PAD_NAMES[padOf(i)]]; };
 function keyLabel(kb, btn) {
+  if (touchMode) return TOUCH_LABELS[kb] || kb;
   if (padMode() && activePad()) return padBtn(btn);
   const a = LABEL_ACT[kb];
   return a && settings.binds[a] ? keyName(bindOf(a)) : kb;
@@ -7120,6 +7246,7 @@ renderer.setAnimationLoop(() => {
   pollPad(dt);
   const pp = state === 'playing' && padMode() && !document.pointerLockElement;
   if (pp !== padPlay) { padPlay = pp; document.body.classList.toggle('padplay', pp); }
+  updateTouchUi();
   if (state === 'playing') {
     now += dt;
     updatePlayer(dt);
