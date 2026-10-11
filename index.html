@@ -266,6 +266,16 @@
   .ctabs button { flex: 1; pointer-events: auto; cursor: pointer; border: 0; background: none; color: var(--mut); font: 700 12px var(--num); letter-spacing: 1.2px; padding: 7px 6px; border-radius: 8px; }
   .ctabs button.sel { background: rgba(255,107,61,.22); color: var(--accent2); }
   .cnote { font-size: 12px; line-height: 1.5; color: var(--mut); margin-top: 10px; }
+  .chal { padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .chal .top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  .chal b { font: 700 13px var(--num); letter-spacing: 1px; }
+  .chal .n { font: 700 12px var(--num); color: var(--mut); white-space: nowrap; }
+  .chal small { display: block; font-size: 12px; color: var(--mut); margin: 1px 0 5px; }
+  .chal .cbar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .chal .cbar u { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .chal.done b, .chal.done .n { color: #8dffb0; }
+  .chal.done .cbar u { background: #8dffb0; }
+  .chal-sum { font: 700 12px var(--num); letter-spacing: 1.2px; color: var(--accent2); padding: 4px 0 6px; }
   .ctrl.bonus { flex-wrap: wrap; row-gap: 2px; }
   .ctrl.bonus span { flex-basis: 100%; padding-left: 28px; }
   .ctrl { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 13px; }
@@ -524,7 +534,7 @@
       <div id="lockHint"></div>
     </div>
     <div class="controls-card glass">
-      <div class="ctabs"><button data-t="0" class="sel">TASTIERA</button><button data-t="3">CONTROLLER</button><button data-t="1">EQUIPAGGIAMENTO</button><button data-t="2">BONUS</button></div>
+      <div class="ctabs"><button data-t="0" class="sel">TASTIERA</button><button data-t="3">CONTROLLER</button><button data-t="1">EQUIP</button><button data-t="2">BONUS</button><button data-t="4">SFIDE</button></div>
       <div class="csec" data-t="0">
       <div class="ctrl"><span>Muoviti</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
       <div class="ctrl"><span>Spara / Mira</span><span><kbd>Click SX</kbd><kbd>Click DX</kbd></span></div>
@@ -550,6 +560,7 @@
       </div>
       <div class="csec" data-t="2" id="bonusLegend" hidden></div>
       <div class="csec" data-t="3" id="padLegend" hidden></div>
+      <div class="csec" data-t="4" id="chalList" hidden></div>
     </div>
   </div>
 </div>
@@ -3200,8 +3211,60 @@ let state = 'menu', menuType = 'main', now = 0, score = 0, kills = 0, headshots 
 const bestKey = () => `spariaps-best-${mode}-${diffKey}${MAP.key === 'arena' ? '' : '-' + MAP.key}`;
 // per-match counters for the end screen, and career totals kept between matches
 let earned = 0, spent = 0, bossKills = 0;
-const career = { games: 0, kills: 0, headshots: 0, bosses: 0, time: 0, bestWave: 0 };
+const career = { games: 0, kills: 0, headshots: 0, bosses: 0, time: 0, bestWave: 0, nightmareWave: 0 };
 try { Object.assign(career, JSON.parse(store.get('spariaps-career', '{}'))); } catch {}
+// the running match is added to the career once: when you die, restart or go back to the menu
+let banked = true, chalT = 1;
+function bankMatch() {
+  if (banked) return;
+  banked = true;
+  if (now < 5 && !kills) return;
+  career.games++; career.kills += kills; career.headshots += headshots; career.bosses += bossKills; career.time += now;
+  career.bestWave = Math.max(career.bestWave, wave);
+  if (diffKey === 'nightmare') career.nightmareWave = Math.max(career.nightmareWave, wave);
+  store.set('spariaps-career', JSON.stringify(career));
+}
+// challenges: career totals count the match in progress, the others are the best single match so far
+const live = (k, cur) => career[k] + (banked ? 0 : cur);
+const CHALLENGES = [
+  { id: 'kills100',  name: 'PRIME ARMI',          desc: '100 uccisioni in carriera',                      goal: 100,   val: () => live('kills', kills) },
+  { id: 'kills1000', name: 'VETERANO',            desc: '1000 uccisioni in carriera',                     goal: 1000,  val: () => live('kills', kills) },
+  { id: 'heads100',  name: 'TIRATORE SCELTO',     desc: '100 headshot in carriera',                       goal: 100,   val: () => live('headshots', headshots) },
+  { id: 'games25',   name: 'DI CASA',             desc: 'Gioca 25 partite',                               goal: 25,    val: () => live('games', 1) },
+  { id: 'boss1',     name: 'AMMAZZAGIGANTI',      desc: 'Sconfiggi un boss',                              goal: 1,     val: () => live('bosses', bossKills) },
+  { id: 'boss10',    name: 'CACCIATORE DI BOSS',  desc: 'Sconfiggi 10 boss in carriera',                  goal: 10,    val: () => live('bosses', bossKills) },
+  { id: 'wave10',    name: 'RESISTENZA',          desc: 'Raggiungi l’ondata 10',                          goal: 10,    val: () => banked ? 0 : wave },
+  { id: 'night20',   name: 'INCUBO A OCCHI APERTI', desc: 'Raggiungi l’ondata 20 a difficoltà Incubo',    goal: 20,    val: () => banked || diffKey !== 'nightmare' ? 0 : wave },
+  { id: 'acc50',     name: 'OCCHIO DI FALCO',     desc: 'Chiudi una partita da almeno 150 colpi con il 50% di precisione', goal: 50, unit: '%', end: true, val: () => shotsFired >= 150 ? Math.round(shotsHit / shotsFired * 100) : 0 },
+  { id: 'time15',    name: 'MARATONETA',          desc: 'Sopravvivi 15 minuti in una partita',            goal: 15,    unit: ' min', val: () => banked ? 0 : Math.floor(now / 60) },
+  { id: 'houses4',   name: 'PADRONE DI CASA',     desc: 'Apri i 4 edifici del Quartiere in una partita',  goal: 4,     val: () => banked ? 0 : (MAP.houses || []).filter(h => h.open).length },
+  { id: 'perks6',    name: 'TUTTO COMPRESO',      desc: 'Compra 6 perk in una partita',                   goal: 6,     val: () => banked ? 0 : Object.keys(perks).length },
+  { id: 'spend15k',  name: 'SPENDACCIONE',        desc: 'Spendi 15000 crediti in una partita',            goal: 15000, val: () => banked ? 0 : spent },
+];
+const chal = {};
+try { Object.assign(chal, JSON.parse(store.get('spariaps-challenges', '{}'))); } catch {}
+// `ended` is true when the match is over: only then the challenges judged on the whole match are checked
+function checkChallenges(ended = false) {
+  let dirty = false;
+  for (const c of CHALLENGES) {
+    if (c.end && !ended) continue;
+    const old = chal[c.id] || 0, v = Math.min(c.goal, c.val());
+    if (v <= old) continue;
+    chal[c.id] = v; dirty = true;
+    if (v >= c.goal) {
+      toast(`SFIDA COMPLETATA · ${c.name}`, 'pu', 'box', '#8dffb0');
+      sfxTone(660, 0.12, 0.1, 'sine', 660); sfxTone(880, 0.12, 0.1, 'sine', 880, 0.12); sfxTone(1320, 0.3, 0.1, 'sine', 1320, 0.24);
+    }
+  }
+  if (dirty) store.set('spariaps-challenges', JSON.stringify(chal));
+}
+function renderChallenges() {
+  const done = CHALLENGES.filter(c => (chal[c.id] || 0) >= c.goal).length;
+  $('chalList').innerHTML = `<div class="chal-sum">${done} / ${CHALLENGES.length} COMPLETATE</div>` + CHALLENGES.map(c => {
+    const v = chal[c.id] || 0, ok = v >= c.goal;
+    return `<div class="chal${ok ? ' done' : ''}"><div class="top"><b>${ok ? '✓ ' : ''}${c.name}</b><span class="n">${v}${c.unit || ''} / ${c.goal}${c.unit || ''}</span></div><small>${c.desc}</small><div class="cbar"><u style="width:${Math.round(v / c.goal * 100)}%"></u></div></div>`;
+  }).join('');
+}
 const clockStr = t => { t = Math.floor(t); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60); return h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}:${String(t % 60).padStart(2, '0')}`; };
 const getBest = () => parseInt(store.get(bestKey(), '0'), 10) || 0;
 
@@ -6031,6 +6094,7 @@ function showMenu(type, { title, sub, stats = '' } = {}) {
   $('mainMenuBtn').classList.toggle('hidden', type === 'main');
   $('bestBox').classList.toggle('hidden', type === 'pause');
   $('mtag').textContent = `${mode === 'zombie' ? 'ZOMBIE' : 'CLASSICA'} · ${D.name}`;
+  renderChallenges();
   $('lockHint').textContent = '';
   refreshPickers();
   menu.classList.remove('hidden');
@@ -6048,6 +6112,7 @@ function clearWorld() {
   $('prompt').classList.remove('on'); promptKey = '';
 }
 function resetGame() {
+  bankMatch();
   primary = CLASSES[classKey].weapon;
   setArena(mode === 'classic');
   D = diffFor(1);
@@ -6063,7 +6128,7 @@ function resetGame() {
   aiming = firing = false;
   player.lean = player.leanT = 0; player.leanV.set(0, 0, 0);
   resetArsenal();
-  wave = 0; toSpawn = 0; waveBreak = 2; bossWave = false; classSwaps = 0; waveTotal = 1; score = 0; kills = 0; headshots = 0; shotsFired = 0; shotsHit = 0; now = 0; hurt = 0;
+  wave = 0; toSpawn = 0; waveBreak = 2; bossWave = false; classSwaps = 0; waveTotal = 1; score = 0; kills = 0; headshots = 0; shotsFired = 0; shotsHit = 0; now = 0; hurt = 0; banked = false; chalT = 1;
   hudWeapon = null; hudLagHp = 100;
   $('killfeed').innerHTML = ''; $('toasts').innerHTML = ''; $('diffInfo').textContent = '';
   $('scope').classList.remove('on');
@@ -6101,6 +6166,7 @@ function pause() {
 }
 function goMainMenu() {
   if (document.pointerLockElement) document.exitPointerLock();
+  checkChallenges(); bankMatch();
   clearWorld();
   pickups.forEach(p => scene.remove(p.group)); pickups = [];
   state = 'menu'; hud.classList.remove('on'); holder.visible = false;
@@ -6117,8 +6183,7 @@ function gameOver() {
   const best = getBest(), record = score > best;
   if (record) store.set(bestKey(), String(score));
   const acc = shotsFired ? Math.round(shotsHit / shotsFired * 100) : 0;
-  career.games++; career.kills += kills; career.headshots += headshots; career.bosses += bossKills; career.time += now; career.bestWave = Math.max(career.bestWave, wave);
-  store.set('spariaps-career', JSON.stringify(career));
+  checkChallenges(true); bankMatch();
   showMenu('dead', {
     title: 'SEI MORTO',
     sub: (record ? 'Nuovo record personale! ' : '') + `Modalità ${mode === 'zombie' ? 'Zombie' : 'Classica'} · ${D.name.toLowerCase()}.`,
@@ -6706,7 +6771,7 @@ renderer.setAnimationLoop(() => {
     updatePlayer(dt);
     withCat('weapons', () => updateWeapon(dt));
     withCat('enemies', () => updateEnemies(dt));
-    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateHouses(dt); updateInteract(); drawMinimap(); }
+    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateHouses(dt); if ((chalT -= dt) <= 0) { chalT = 1; checkChallenges(); } updateInteract(); drawMinimap(); }
     updateFx(dt);
     updateDamageNumbers(dt);
     if (state === 'playing') updateHUD(dt);
