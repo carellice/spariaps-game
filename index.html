@@ -3039,6 +3039,24 @@ function buildRocket() {
   return { group: g, flash, mag, magBase: mag.position.clone() };
 }
 
+// recoil patterns: v(n) scales the climb of shot n of a burst, h(n) is the sideways pull in radians (positive = right), jit the random part.
+// Learnable shapes: the rifle goes up, then right, then left; the LMG kicks hard and settles; SMGs shake; single shots snap.
+const seq = arr => n => arr[Math.min(n, arr.length - 1)], sway = (amp, period, from = 0) => n => n < from ? 0 : Math.sin((n - from) / period * Math.PI * 2) * amp;
+const RECOIL = {
+  rifle:   { v: n => n < 4 ? 1.35 : 0.8,              h: n => n < 4 ? 0 : sway(0.0075, 12)(n - 4), jit: 0.0008 },
+  smg:     { v: n => n < 2 ? 1.1 : 0.7,               h: sway(0.003, 5),                        jit: 0.0042 },
+  uzi:     { v: () => 0.75,                           h: () => 0,                               jit: 0.0065 },
+  lmg:     { v: n => n < 6 ? 1.7 : 0.45,              h: sway(0.0045, 18, 6),                   jit: 0.0018 },
+  minigun: { v: n => Math.max(0.25, 1.2 - n * 0.05),  h: sway(0.0035, 30),                      jit: 0.003 },
+  burst:   { v: seq([0.8, 1.1, 1.5]),                 h: seq([0.001, 0.0035, 0.006]),           jit: 0.0006 },
+  dmr:     { v: () => 1.15,                           h: n => (n % 2 ? -1 : 1) * 0.0045,        jit: 0.001 },
+  pistol:  { v: n => 1 + Math.min(n, 4) * 0.12,       h: () => 0,                               jit: 0.003 },
+  magnum:  { v: () => 1.3,                            h: () => 0.004,                           jit: 0.004 },
+  shotgun: { v: () => 1.2,                            h: () => 0,                               jit: 0.009 },
+  sniper:  { v: () => 1.2,                            h: () => -0.003,                          jit: 0.004 },
+  rocket:  { v: () => 1,                              h: () => 0,                               jit: 0.006 },
+  raygun:  { v: () => 0.8,                            h: sway(0.002, 4),                        jit: 0.001 },
+};
 const WEAPONS = {
   rifle: {
     name: 'FUCILE', auto: true, rate: 0.1, magSize: 30, reload: 1.6,
@@ -3196,7 +3214,7 @@ const dmgMul = k => 1 + 0.2 * upgLv(k, 'dmg');
 const reloadOf = (k = weapon.current) => WEAPONS[k].reload * (1 - 0.15 * upgLv(k, 'rel')) * (perks.reload ? 0.65 : 1);
 const weapon = {
   current: primary, last: 'pistol', mags: { [primary]: WEAPONS[primary].magSize, pistol: 12 },
-  reloading: false, reloadT: 0, cooldown: 0, bloom: 0, kick: 0, recoilOff: 0, flashT: 0, adsT: 0, slideKick: 0,
+  reloading: false, reloadT: 0, cooldown: 0, bloom: 0, kick: 0, recoilOff: 0, flashT: 0, adsT: 0, slideKick: 0, spray: 0, sprayT: 0,
   switchT: 0, switchTo: null, meleeT: 0, meleeHit: false, throwT: 0, burstLeft: 0, spin: 0,
 };
 const W = () => WEAPONS[weapon.current];
@@ -3641,9 +3659,12 @@ function shoot() {
   }
   weapon.flashT = 0.05; weapon.kick = 1; weapon.slideKick = 1;
   weapon.bloom = Math.min(0.05, weapon.bloom + w.bloom);
+  // every weapon has its own spray: `n` counts the shots of the current burst and resets when you let go for a moment
+  const rc = RECOIL[weapon.current] || RECOIL.rifle, n = weapon.spray++, steady = lerp(1, 0.6, weapon.adsT) * lerp(1, 0.7, player.crouchT);
+  weapon.sprayT = w.rate + 0.28;
   weapon.recoilOff += w.recoil * lerp(1, 0.5, weapon.adsT) * lerp(1, 0.7, player.crouchT);
-  player.pitch = clamp(player.pitch + w.climb * lerp(1, 0.6, weapon.adsT) * lerp(1, 0.7, player.crouchT), -1.5, 1.5);
-  player.yaw += rand(-0.004, 0.004);
+  player.pitch = clamp(player.pitch + w.climb * rc.v(n) * steady, -1.5, 1.5);
+  player.yaw -= (rc.h(n) + rand(-rc.jit, rc.jit)) * steady;
   player.shake = Math.max(player.shake, w.shake ?? 0.12);
   if (w.projectile === 'plasma') sfxRay(); else if (w.projectile) sfxRocketLaunch(); else sfxShot(w.snd, w.vol);
   if (w.projectile) {}
@@ -3718,6 +3739,7 @@ function updateWeapon(dt) {
     triggerQueued = false;
   }
   weapon.bloom = Math.max(0, weapon.bloom - dt * 0.08);
+  if ((weapon.sprayT -= dt) <= 0) weapon.spray = 0;
   weapon.recoilOff *= Math.exp(-dt * 12);
   weapon.kick *= Math.exp(-dt * 18);
   weapon.slideKick *= Math.exp(-dt * 28);
@@ -6181,7 +6203,7 @@ function resetGame() {
   player.pos.set(...MAP.start); player.vel.set(0, 0, 0);
   Object.assign(weapon, {
     current: primary, last: 'pistol', mags: { [primary]: WEAPONS[primary].magSize, pistol: 12 }, reloading: false, reloadT: 0, cooldown: 0,
-    bloom: 0, kick: 0, recoilOff: 0, adsT: 0, switchT: 0, switchTo: null, meleeT: 0, slideKick: 0, throwT: 0, burstLeft: 0, spin: 0,
+    bloom: 0, kick: 0, recoilOff: 0, spray: 0, sprayT: 0, adsT: 0, switchT: 0, switchTo: null, meleeT: 0, slideKick: 0, throwT: 0, burstLeft: 0, spin: 0,
   });
   aiming = firing = false;
   player.lean = player.leanT = 0; player.leanV.set(0, 0, 0);
