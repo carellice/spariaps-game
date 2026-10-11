@@ -187,6 +187,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 Dalle **Impostazioni** puoi regolare:
 - luci, luminosità e qualità grafica (3 livelli);
 - sensibilità di mouse e controller;
+- comandi rimappabili, per tastiera e controller;
 - mira tenendo premuto o con un clic;
 - mira semplificata e aiuto alla mira;
 - volume separato per musica, armi, nemici, effetti e interfaccia;

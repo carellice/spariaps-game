@@ -70,6 +70,13 @@
   .wavebox.break #waveSub { display: none; }
   .wavebox.break .brk { display: block; }
 
+  .bind { display: grid; grid-template-columns: 1fr 104px 104px; gap: 8px; align-items: center; padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 14px; }
+  .bind.head { font: 700 11px var(--num); letter-spacing: 1.5px; color: var(--mut); border: 0; }
+  .bind.head span + span { text-align: center; }
+  .bind button { cursor: pointer; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: var(--txt); font: 700 13px var(--num); letter-spacing: .5px; padding: 7px 4px; border-radius: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bind button:hover, .bind button.pfocus { border-color: var(--accent2); }
+  .bind button.wait { background: rgba(255,107,61,.25); border-color: var(--accent); color: var(--accent2); }
+  .bind .na { text-align: center; color: var(--mut); }
   #fps { position: fixed; right: 8px; bottom: 6px; z-index: 60; font: 600 12px var(--num); letter-spacing: .5px; color: #9dffb0; text-shadow: 0 1px 2px #000; pointer-events: none; display: none; }
   #fps.on { display: block; }
   #minimap { position: absolute; left: 16px; top: 72px; width: 180px; height: 180px; border-radius: 50%; padding: 0; }
@@ -544,26 +551,26 @@
     <div class="controls-card glass">
       <div class="ctabs"><button data-t="0" class="sel">TASTIERA</button><button data-t="3">CONTROLLER</button><button data-t="1">EQUIP</button><button data-t="2">BONUS</button><button data-t="4">SFIDE</button></div>
       <div class="csec" data-t="0">
-      <div class="ctrl"><span>Muoviti</span><span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></div>
+      <div class="ctrl"><span>Muoviti</span><span><kbd data-act="fwd">W</kbd><kbd data-act="left">A</kbd><kbd data-act="back">S</kbd><kbd data-act="right">D</kbd></span></div>
       <div class="ctrl"><span>Spara / Mira</span><span><kbd>Click SX</kbd><kbd>Click DX</kbd></span></div>
-      <div class="ctrl"><span>Corri / Salta</span><span><kbd>Shift</kbd><kbd>Spazio</kbd></span></div>
-      <div class="ctrl"><span>Doppio salto (arena)</span><span><kbd>Spazio</kbd><kbd>×2</kbd></span></div>
-      <div class="ctrl"><span>Accucciati · scivola (mentre corri)</span><span><kbd>C</kbd></span></div>
-      <div class="ctrl"><span>Sporgiti (mentre miri)</span><span><kbd>Q</kbd><kbd>E</kbd></span></div>
-      <div class="ctrl"><span>Cambia arma</span><span><kbd>1</kbd><kbd>2</kbd><kbd>Rotella</kbd><kbd>Q</kbd></span></div>
-      <div class="ctrl"><span>Coltellata</span><span><kbd>V</kbd><kbd>F</kbd></span></div>
-      <div class="ctrl"><span>Ricarica</span><span><kbd>R</kbd></span></div>
-      <div class="ctrl"><span>Usa cassa / raccogli arma</span><span><kbd>E</kbd></span></div>
-      <div class="ctrl"><span>Getta arma</span><span><kbd>B</kbd></span></div>
-      <div class="ctrl"><span>Avvia subito l’ondata successiva</span><span><kbd>Invio</kbd></span></div>
+      <div class="ctrl"><span>Corri / Salta</span><span><kbd data-act="sprint">Shift</kbd><kbd data-act="jump">Spazio</kbd></span></div>
+      <div class="ctrl"><span>Doppio salto (arena)</span><span><kbd data-act="jump">Spazio</kbd><kbd>×2</kbd></span></div>
+      <div class="ctrl"><span>Accucciati · scivola (mentre corri)</span><span><kbd data-act="crouch">C</kbd></span></div>
+      <div class="ctrl"><span>Sporgiti (mentre miri)</span><span><kbd data-act="swap">Q</kbd><kbd data-act="interact">E</kbd></span></div>
+      <div class="ctrl"><span>Cambia arma</span><span><kbd>1</kbd><kbd>2</kbd><kbd>Rotella</kbd><kbd data-act="swap">Q</kbd></span></div>
+      <div class="ctrl"><span>Coltellata</span><span><kbd data-act="melee">V</kbd><kbd>F</kbd></span></div>
+      <div class="ctrl"><span>Ricarica</span><span><kbd data-act="reload">R</kbd></span></div>
+      <div class="ctrl"><span>Usa cassa / raccogli arma</span><span><kbd data-act="interact">E</kbd></span></div>
+      <div class="ctrl"><span>Getta arma</span><span><kbd data-act="drop">B</kbd></span></div>
+      <div class="ctrl"><span>Avvia subito l’ondata successiva</span><span><kbd data-act="skip">Invio</kbd></span></div>
       <div class="ctrl"><span>Audio on/off</span><span><kbd>M</kbd></span></div>
-      <div class="ctrl"><span>Pausa</span><span><kbd>P</kbd><kbd>Esc</kbd></span></div>
+      <div class="ctrl"><span>Pausa</span><span><kbd data-act="pause">P</kbd><kbd>Esc</kbd></span></div>
       </div>
       <div class="csec" data-t="1" hidden>
-      <div class="ctrl"><span>Granata a frammentazione</span><span><kbd>G</kbd></span></div>
-      <div class="ctrl"><span>Granata stordente</span><span><kbd>Z</kbd></span></div>
-      <div class="ctrl"><span>Fumogeno</span><span><kbd>X</kbd></span></div>
-      <div class="ctrl"><span>Coltello da lancio</span><span><kbd>T</kbd></span></div>
+      <div class="ctrl"><span>Granata a frammentazione</span><span><kbd data-act="frag">G</kbd></span></div>
+      <div class="ctrl"><span>Granata stordente</span><span><kbd data-act="stun">Z</kbd></span></div>
+      <div class="ctrl"><span>Fumogeno</span><span><kbd data-act="smoke">X</kbd></span></div>
+      <div class="ctrl"><span>Coltello da lancio</span><span><kbd data-act="tknife">T</kbd></span></div>
       <p class="cnote">Si parte senza: trovali nei pacchetti arancioni sparsi per la mappa o raccoglili dai nemici eliminati. Uccidere nemici ti dà anche crediti da spendere nella cassa misteriosa.</p>
       </div>
       <div class="csec" data-t="2" id="bonusLegend" hidden></div>
@@ -673,6 +680,12 @@
             <div class="optseg" id="assistSeg"><button data-v="off">DISATTIVA</button><button data-v="on">ATTIVA</button></div>
           </div>
         </div>
+      </section>
+      <section class="set-col glass">
+        <div class="set-h">COMANDI</div>
+        <div class="hint" style="margin-bottom:10px">Scegli un comando e premi il nuovo tasto o pulsante. Se è già usato, i due comandi si scambiano. <b>Esc</b> annulla. Mouse, <b>1</b>, <b>2</b>, <b>M</b> ed <b>Esc</b> restano fissi.</div>
+        <div id="bindList"></div>
+        <div class="set" style="margin-top:12px"><button id="bindReset" class="btn2 fs"><span>RIPRISTINA I COMANDI</span></button></div>
       </section>
       <section class="set-col glass">
         <div class="set-h">AUDIO</div>
@@ -798,10 +811,11 @@ if (mode !== 'zombie') mode = 'classic';
 let D = diffFor(1);
 
 const SETTINGS_DEFAULT = { lights: 1, bright: 1, sens: 1, adsHold: true, autoAds: false, quality: 'high',
-  input: 'kbm', padSens: 1, invertY: false, aimAssist: true, fps: false,
+  input: 'kbm', padSens: 1, invertY: false, aimAssist: true, fps: false, binds: {}, padBinds: {},
   volMaster: 1, volMusic: 0.7, volWeapons: 1, volEnemies: 1, volFx: 1, volUi: 0.8 };
 const settings = { ...SETTINGS_DEFAULT };
 try { Object.assign(settings, JSON.parse(store.get('spariaps-settings', '{}'))); } catch {}
+settings.binds = { ...settings.binds }; settings.padBinds = { ...settings.padBinds };
 const saveSettings = () => store.set('spariaps-settings', JSON.stringify(settings));
 const lightK = () => Math.max(0.35, settings.lights);
 
@@ -3234,6 +3248,74 @@ const playerEye = () => new V3(player.pos.x, player.pos.y + eyeHeight(), player.
 const isAiming = () => aiming || (settings.autoAds && firing);
 
 const keys = {};
+// ---------------------------------------------------------------- remappable controls
+// The game logic keeps reading the default key codes and button numbers: bindings translate what you press into those.
+const ACTIONS = [
+  ['fwd', 'Avanti', 'KeyW'], ['back', 'Indietro', 'KeyS'], ['left', 'Sinistra', 'KeyA'], ['right', 'Destra', 'KeyD'],
+  ['fire', 'Spara', null, 7], ['aim', 'Mira', null, 6],
+  ['jump', 'Salta', 'Space', 0], ['sprint', 'Corri', 'ShiftLeft', 10], ['crouch', 'Accucciati · scivola', 'KeyC', 1],
+  ['reload', 'Ricarica (controller: anche usa)', 'KeyR', 2], ['interact', 'Usa · raccogli', 'KeyE'], ['swap', 'Cambia arma', 'KeyQ', 3],
+  ['melee', 'Coltellata', 'KeyV', 5], ['melee2', 'Coltellata (stick destro)', null, 11],
+  ['frag', 'Granata', 'KeyG', 4], ['stun', 'Stordente', 'KeyZ', 12], ['smoke', 'Fumogeno', 'KeyX', 13], ['tknife', 'Coltello da lancio', 'KeyT', 14],
+  ['drop', 'Getta arma', 'KeyB', 15], ['skip', 'Avvia subito l’ondata', 'Enter', 8], ['pause', 'Pausa', 'KeyP', 9],
+].map(([id, name, key, btn]) => ({ id, name, key, btn }));
+const ACT = Object.fromEntries(ACTIONS.map(a => [a.id, a]));
+const FIXED_KEYS = ['Escape', 'Digit1', 'Digit2', 'KeyM'];
+const PAD_NAMES = ['A', 'B', 'X', 'Y', 'LB', 'RB', 'LT', 'RT', 'back', 'start', 'L3', 'R3', 'up', 'down', 'left', 'right'];
+const KEY_NAMES = { Space: 'Spazio', ShiftLeft: 'Shift', ShiftRight: 'Shift dx', ControlLeft: 'Ctrl', ControlRight: 'Ctrl dx', AltLeft: 'Alt', AltRight: 'Alt dx', Enter: 'Invio', NumpadEnter: 'Invio tn',
+  Tab: 'Tab', CapsLock: 'Bloc Maiusc', Backspace: 'Backspace', ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Backquote: '\\', Minus: '-', Equal: '=', Comma: ',', Period: '.', Slash: '/' };
+const keyName = code => KEY_NAMES[code] || code.replace(/^Key|^Digit/, '').replace(/^Numpad/, 'Tn ');
+const bindOf = id => settings.binds[id] || ACT[id].key;
+const padOf = i => settings.padBinds[i] ?? i;   // logical button -> the physical one that triggers it
+let phys2log = {};
+const KEY_DEFAULTS = new Set(ACTIONS.map(a => a.key).filter(Boolean));
+function rebuildBinds() {
+  phys2log = {};
+  for (const a of ACTIONS) if (a.key) phys2log[bindOf(a.id)] = a.key;
+}
+// a key that lost its default job and was given no new one does nothing
+const logical = code => phys2log[code] ?? (KEY_DEFAULTS.has(code) ? '' : code);
+rebuildBinds();
+let bindWait = null;   // { id, dev: 'key' | 'pad' } while the settings wait for the new key or button
+function setKeyBind(id, code) {
+  const old = bindOf(id), other = ACTIONS.find(a => a.key && a.id !== id && bindOf(a.id) === code);
+  if (other) settings.binds[other.id] = old;
+  settings.binds[id] = code;
+  for (const a of ACTIONS) if (settings.binds[a.id] === a.key) delete settings.binds[a.id];
+}
+function setPadBind(logicalBtn, phys) {
+  const old = padOf(logicalBtn), other = PAD_NAMES.findIndex((_, i) => i !== logicalBtn && padOf(i) === phys);
+  if (other >= 0) settings.padBinds[other] = old;
+  settings.padBinds[logicalBtn] = phys;
+  for (const i of Object.keys(settings.padBinds)) if (settings.padBinds[i] === +i) delete settings.padBinds[i];
+}
+function bindsChanged() { bindWait = null; rebuildBinds(); saveSettings(); renderBinds(); }
+function renderBinds() {
+  const L = PL();
+  $('bindList').innerHTML = '<div class="bind head"><span>COMANDO</span><span>TASTIERA</span><span>CONTROLLER</span></div>' + ACTIONS.map(a => {
+    const w = bindWait?.id === a.id ? bindWait.dev : '';
+    return `<div class="bind"><span>${a.name}</span>`
+      + (a.key ? `<button data-id="${a.id}" data-dev="key" class="${w === 'key' ? 'wait' : ''}">${w === 'key' ? 'PREMI…' : keyName(bindOf(a.id))}</button>` : `<span class="na">${a.id === 'melee2' ? '—' : 'mouse'}</span>`)
+      + (a.btn != null ? `<button data-id="${a.id}" data-dev="pad" class="${w === 'pad' ? 'wait' : ''}">${w === 'pad' ? 'PREMI…' : L[PAD_NAMES[padOf(a.btn)]]}</button>` : `<span class="na">${a.id === 'interact' ? 'come ricarica' : 'stick'}</span>`) + '</div>';
+  }).join('');
+  document.querySelectorAll('kbd[data-act]').forEach(k => k.textContent = keyName(bindOf(k.dataset.act)));
+  renderPadLegend();
+}
+$('bindList').addEventListener('click', e => {
+  const b = e.target.closest('button[data-id]');
+  if (!b) return;
+  bindWait = bindWait?.id === b.dataset.id && bindWait.dev === b.dataset.dev ? null : { id: b.dataset.id, dev: b.dataset.dev };
+  renderBinds();
+  if (padFocus) setPadFocus($('bindList').querySelector(`button[data-id="${b.dataset.id}"][data-dev="${b.dataset.dev}"]`), false);
+});
+$('bindReset').addEventListener('click', () => { settings.binds = {}; settings.padBinds = {}; bindsChanged(); });
+// while waiting for a key nothing else must react to it
+addEventListener('keydown', e => {
+  if (bindWait?.dev !== 'key') return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  if (e.code === 'Escape' || FIXED_KEYS.includes(e.code)) { bindWait = null; return renderBinds(); }
+  setKeyBind(bindWait.id, e.code); bindsChanged();
+}, true);
 // controller state read by the gameplay code (filled by pollPad every frame)
 const pad = { mx: 0, my: 0, jump: false, sprint: false };
 const padMode = () => settings.input === 'pad';
@@ -3300,16 +3382,17 @@ const clockStr = t => { t = Math.floor(t); const h = Math.floor(t / 3600), m = M
 const getBest = () => parseInt(store.get(bestKey(), '0'), 10) || 0;
 
 addEventListener('keydown', e => {
-  keys[e.code] = true;
-  if (e.code === 'Space') e.preventDefault();
+  const code = logical(e.code);
+  keys[code] = true;
+  if (e.code === 'Space' || code === 'Space') e.preventDefault();
   // P pauses/resumes without touching fullscreen (Esc also leaves fullscreen in most browsers)
-  if (e.code === 'KeyP' && !e.repeat) {
+  if (code === 'KeyP' && !e.repeat) {
     if (state === 'playing') pauseGame();
     else if (state === 'paused' && $('settings').classList.contains('hidden')) enterGame();
     return;
   }
   if (state !== 'playing') return;
-  gameKey(e.code, e.repeat);
+  gameKey(code, e.repeat);
 });
 // gameplay actions shared by the keyboard and the controller
 function toggleLean(dir) {
@@ -3349,7 +3432,7 @@ function pauseGame() {
   if (document.pointerLockElement) document.exitPointerLock();
   else pause();
 }
-addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('keyup', e => { keys[logical(e.code)] = false; });
 addEventListener('blur', () => { firing = aiming = false; for (const k in keys) keys[k] = false; });
 const mouseOff = () => padMode() && !document.pointerLockElement;
 addEventListener('mousedown', e => {
@@ -6550,7 +6633,7 @@ addEventListener('webkitfullscreenchange', syncFullscreenUI);
 addEventListener('resize', syncFullscreenUI);
 syncFullscreenUI();
 $('settingsReset').addEventListener('click', () => {
-  Object.assign(settings, SETTINGS_DEFAULT, { input: settings.input }); syncSettingsUI(); syncOptionUI(); applyAtmosphere(mode); applyQuality(); applyVolumes(); saveSettings();
+  Object.assign(settings, SETTINGS_DEFAULT, { input: settings.input, binds: settings.binds, padBinds: settings.padBinds }); syncSettingsUI(); syncOptionUI(); applyAtmosphere(mode); applyQuality(); applyVolumes(); saveSettings();
   pickups.forEach(p => { if (p.light) p.light.visible = true; });
 });
 document.querySelectorAll('.ctabs button').forEach(b => b.addEventListener('click', () => {
@@ -6614,7 +6697,14 @@ const PAD_LABELS = {
 };
 let padIndex = null, padStyle = 'xbox';
 const PL = () => PAD_LABELS[padStyle];
-function keyLabel(kb, btn) { return padMode() && activePad() ? PL()[btn] : kb; }
+// prompts are written with the default key and button: show whatever they are bound to now
+const LABEL_ACT = { E: 'interact', R: 'reload', INVIO: 'skip', W: 'fwd', A: 'left', S: 'back', D: 'right', Shift: 'sprint', Spazio: 'jump', C: 'crouch' };
+const padBtn = btn => { const i = PAD_NAMES.indexOf(btn); return PL()[i < 0 ? btn : PAD_NAMES[padOf(i)]]; };
+function keyLabel(kb, btn) {
+  if (padMode() && activePad()) return padBtn(btn);
+  const a = LABEL_ACT[kb];
+  return a && settings.binds[a] ? keyName(bindOf(a)) : kb;
+}
 function activePad() {
   const list = navigator.getGamepads ? navigator.getGamepads() : [];
   let gp = padIndex !== null ? list[padIndex] : null;
@@ -6648,7 +6738,7 @@ function applyInputMode() {
   $('padStatus').textContent = gp ? `Collegato: ${padName(gp)}` : 'Nessun controller rilevato: collegalo e premi un tasto qualsiasi';
   $('padStatus').style.color = gp ? 'var(--armor2)' : '';
   document.querySelectorAll('#inputSeg button').forEach(b => b.classList.toggle('sel', b.dataset.v === settings.input));
-  renderPadLegend();
+  renderBinds();
   if (!on) { clearPadFocus(); pad.mx = pad.my = 0; pad.jump = pad.sprint = false; }
 }
 function setInput(v, why) {
@@ -6667,7 +6757,7 @@ function setInput(v, why) {
   if (why) padNote(why);
 }
 function renderPadLegend() {
-  const L = PL(), k = (...b) => b.map(x => `<kbd>${L[x]}</kbd>`).join('');
+  const L = PL(), k = (...b) => b.map(x => `<kbd>${padBtn(x)}</kbd>`).join('');
   $('padLegend').innerHTML = [
     ['Muoviti / Guarda', k('ls', 'rs')], ['Spara / Mira', k('RT', 'LT')], ['Salta (×2 in arena)', k('A')], ['Corri', k('L3')],
     ['Accucciati · scivola (mentre corri)', k('B')], ['Ricarica · usa cassa / raccogli', k('X')], ['Cambia arma', k('Y')],
@@ -6791,6 +6881,12 @@ function pollPad(dt) {
   // any input from the pad while the mouse is selected switches back to the controller
   if (!padMode() && (cur.some((v, i) => v && !padPrev[i]) || ax.some(v => Math.abs(v) > 0.6))) setInput('pad', 'Controller rilevato · modalità controller attiva');
   if (!padMode()) { cur.forEach((v, i) => padPrev[i] = v); return; }
+  // settings waiting for a new button: the first one pressed is taken and does nothing else
+  if (bindWait?.dev === 'pad') {
+    const p = cur.findIndex((v, i) => v && !padPrev[i] && i < 16);
+    if (p >= 0) { const id = bindWait.id; setPadBind(ACT[id].btn, p); bindsChanged(); setPadFocus($('bindList').querySelector(`button[data-id="${id}"][data-dev="pad"]`), false); }
+    cur.forEach((v, i) => padPrev[i] = v); return;
+  }
 
   if (state === 'playing' && uiLayer() === null) {
     const [mx, my] = dz(ax[0] || 0, ax[1] || 0, 0.16);
@@ -6804,27 +6900,27 @@ function pollPad(dt) {
     player.pitch = clamp(player.pitch - dpitch, -1.5, 1.5);
     swayX += dyaw * 0.068; swayY += dpitch * 0.068;
 
-    pad.jump = cur[0];
-    if (down(0)) gameKey('Space');
-    if (down(1)) gameKey('KeyC');
-    if (down(2)) { if (interactTarget()) interact(); else startReload(); }
-    if (down(3)) switchWeapon(otherSlot());
-    if (down(4)) throwItem('frag');
-    if (down(5)) startMelee();
+    pad.jump = cur[padOf(0)];
+    if (down(padOf(0))) gameKey('Space');
+    if (down(padOf(1))) gameKey('KeyC');
+    if (down(padOf(2))) { if (interactTarget()) interact(); else startReload(); }
+    if (down(padOf(3))) switchWeapon(otherSlot());
+    if (down(padOf(4))) throwItem('frag');
+    if (down(padOf(5))) startMelee();
     // Rainbow Six Siege on console: L3/R3 lean while aiming, otherwise sprint / melee
-    if (down(10)) { if (isAiming()) toggleLean(-1); else pad.sprint = !pad.sprint; }
-    if (down(11)) { if (isAiming()) toggleLean(1); else startMelee(); }
+    if (down(padOf(10))) { if (isAiming()) toggleLean(-1); else pad.sprint = !pad.sprint; }
+    if (down(padOf(11))) { if (isAiming()) toggleLean(1); else startMelee(); }
     if (pad.my < 0.2) pad.sprint = false;
-    if (down(12)) throwItem('stun');
-    if (down(13)) throwItem('smoke');
-    if (down(14)) throwItem('tknife');
-    if (down(15)) dropCurrentWeapon();
-    if (down(8)) gameKey('Enter');
-    if (down(7)) { firing = true; triggerQueued = true; triggerT = now; }
-    if (up(7)) firing = false;
-    if (settings.adsHold) { if (down(6)) aiming = true; if (up(6)) aiming = false; }
-    else if (down(6)) aiming = !aiming;
-    if (down(9)) pauseGame();
+    if (down(padOf(12))) throwItem('stun');
+    if (down(padOf(13))) throwItem('smoke');
+    if (down(padOf(14))) throwItem('tknife');
+    if (down(padOf(15))) dropCurrentWeapon();
+    if (down(padOf(8))) gameKey('Enter');
+    if (down(padOf(7))) { firing = true; triggerQueued = true; triggerT = now; }
+    if (up(padOf(7))) firing = false;
+    if (settings.adsHold) { if (down(padOf(6))) aiming = true; if (up(padOf(6))) aiming = false; }
+    else if (down(padOf(6))) aiming = !aiming;
+    if (down(padOf(9))) pauseGame();
   } else {
     pad.mx = pad.my = 0; pad.jump = false;
     const layer = uiLayer();
