@@ -180,6 +180,13 @@
   #cash { transition: color .2s; }
   #cash.flash { color: #ffd45a; }
   #prompt { position: absolute; left: 50%; top: calc(50% + 64px); transform: translateX(-50%); display: none; align-items: center; gap: 10px; padding: 9px 16px 9px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  #tut { position: absolute; left: 50%; top: 112px; transform: translateX(-50%); display: none; align-items: center; gap: 14px; padding: 10px 18px; border-radius: 16px; font-size: 15px; font-weight: 600; line-height: 1.5; max-width: min(680px, 92vw); }
+  #tut.on { display: flex; animation: toast-in .25s ease-out; }
+  #tut .st { font: 700 12px var(--num); letter-spacing: 1.5px; color: var(--accent2); white-space: nowrap; }
+  #tut.ok { box-shadow: 0 0 0 2px #8dffb0 inset; }
+  #tut.ok .st { color: #8dffb0; }
+  #tut kbd { margin: 0 2px; height: 22px; font-size: 12px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #ff8047, #ff4a2b); border: 0; }
+  #tut b { color: var(--accent2); }
   #prompt.on { display: flex; animation: toast-in .2s ease-out; }
   #prompt kbd { margin: 0; min-width: 28px; height: 26px; font-size: 13px; font-weight: 700; color: #fff; background: linear-gradient(135deg, #ff8047, #ff4a2b); border: 0; }
   #prompt .price { font: 700 17px var(--num); color: #ffd45a; }
@@ -440,6 +447,7 @@
     <div class="chip glass cash"><svg data-icon="coin"></svg><span id="cash">0</span><small>CREDITI</small></div>
   </div>
   <div id="prompt" class="glass"><kbd>E</kbd><span></span></div>
+  <div id="tut" class="glass"><span class="st"></span><span class="tx"></span></div>
 
   <canvas id="minimap" class="glass" width="180" height="180"></canvas>
   <div id="bossbar" class="glass"><div class="bn"><span id="bossName"></span><span id="bossHp"></span></div><div class="bt"><i id="bossLag"></i><i id="bossFill"></i></div></div>
@@ -636,6 +644,11 @@
         <div class="set">
           <div class="row" style="margin-bottom:0;align-items:center"><div><div class="nm">Mira semplificata</div><div class="hint">Sparando col tasto sinistro miri in automatico (stile COD Mobile)</div></div>
             <div class="optseg" id="autoSeg"><button data-v="off">DISATTIVA</button><button data-v="on">ATTIVA</button></div>
+          </div>
+        </div>
+        <div class="set">
+          <div class="row" style="margin-bottom:0;align-items:center"><div><div class="nm">Tutorial</div><div class="hint">I suggerimenti della prima partita: comandi, crediti, negozi ed edifici</div></div>
+            <button id="tutBtn" class="btn2 fs"><span>RIVEDI ALLA PROSSIMA PARTITA</span></button>
           </div>
         </div>
       </section>
@@ -6135,6 +6148,7 @@ function resetGame() {
   $('waveLabel').textContent = WORD().wave;
   $('enemyWord').textContent = WORD().enemy;
   applyAtmosphere(mode);
+  startTutorial();
 }
 function beginPlay() {
   state = 'playing';
@@ -6156,6 +6170,42 @@ function enterGame() {
   });
   else if (!('pointerLockElement' in document)) beginPlay();
 }
+// ---------------------------------------------------------------- first-match tutorial: a few hints, each ticked off by doing what it says
+const K = (kb, btn) => `<kbd>${keyLabel(kb, btn)}</kbd>`;
+const TUT = [
+  { h: () => padMode() && activePad() ? `Muoviti con lo stick sinistro e guardati intorno con il destro` : `Muoviti con ${K('W')}${K('A')}${K('S')}${K('D')} e guardati intorno con il mouse`, ok: () => tut.moved > 4 },
+  { h: () => `Spara con ${K('Clic SX', 'RT')} · mira con ${K('Clic DX', 'LT')}`, ok: () => shotsFired > 0 },
+  { h: () => `Ricarica con ${K('R', 'X')} prima di restare a secco`, ok: () => weapon.reloading },
+  { h: () => `Corri con ${K('Shift', 'L3')} · salta con ${K('Spazio', 'A')}`, ok: () => tut.ran && tut.jumped },
+  { h: () => `Ogni uccisione dà <b>crediti</b>. Spendili alla <b>cassa misteriosa</b> (quadrato giallo sulla minimappa) con ${K('E', 'X')}` },
+  { h: () => `Il <b>banco armi</b> (arancione) potenzia le tue armi · il <b>distributore di perk</b> (viola) apre tra un’ondata e l’altra` },
+  { h: () => `Gli <b>edifici</b> con il quadratino rosso si aprono con i crediti: dentro puoi ripararti, ma i nemici ti seguono`, when: () => MAP.houses?.length },
+  { h: () => `I <b>cuori</b> sopra la vita sono le seconde vite: se cadi ti rialzi. Ogni 5 ondate arriva un boss. Buona fortuna!` },
+];
+const tut = { i: -1, t: 0, okT: 0, moved: 0, ran: false, jumped: false, px: 0, pz: 0, html: '' };
+function startTutorial() {
+  const on = store.get('spariaps-tut', '0') !== '1';
+  Object.assign(tut, { i: on ? 0 : -1, t: 0, okT: 0, moved: 0, ran: false, jumped: false, px: player.pos.x, pz: player.pos.z, html: '' });
+  $('tut').classList.remove('on', 'ok');
+  if (on) waveBreak = 12;   // a quiet moment to try the controls before the first wave
+}
+function updateTutorial(dt) {
+  if (tut.i < 0) return;
+  const el = $('tut');
+  while (tut.i < TUT.length && TUT[tut.i].when && !TUT[tut.i].when()) tut.i++;
+  if (tut.i >= TUT.length) { tut.i = -1; el.classList.remove('on', 'ok'); store.set('spariaps-tut', '1'); return; }
+  const s = TUT[tut.i];
+  tut.moved += Math.hypot(player.pos.x - tut.px, player.pos.z - tut.pz); tut.px = player.pos.x; tut.pz = player.pos.z;
+  if (player.sprintT > 0.6) tut.ran = true;
+  if (!player.onGround) tut.jumped = true;
+  tut.t += dt;
+  const html = s.h();
+  if (html !== tut.html) { tut.html = html; el.querySelector('.st').textContent = `TUTORIAL ${tut.i + 1}/${TUT.length}`; el.querySelector('.tx').innerHTML = html; el.classList.add('on'); }
+  // actions get a green tick as soon as you do them; plain hints stay long enough to be read
+  if (!tut.okT && (s.ok ? s.ok() || tut.t > 25 : tut.t > 7)) { tut.okT = s.ok ? 0.9 : 0.01; if (s.ok && tut.t <= 25) { el.classList.add('ok'); sfxTone(880, 0.1, 0.07, 'sine', 1320); } }
+  if (tut.okT && (tut.okT -= dt) <= 0) { tut.i++; tut.t = 0; tut.okT = 0; tut.moved = 0; tut.ran = tut.jumped = false; tut.html = ''; el.classList.remove('on', 'ok'); }
+}
+$('tutBtn').addEventListener('click', () => { store.set('spariaps-tut', '0'); $('tutBtn').querySelector('span').textContent = 'ATTIVO ALLA PROSSIMA PARTITA ✓'; });
 function startNewGame() { initAudio(); resetGame(); enterGame(); }
 function pause() {
   state = 'paused'; firing = aiming = false;
@@ -6771,7 +6821,7 @@ renderer.setAnimationLoop(() => {
     updatePlayer(dt);
     withCat('weapons', () => updateWeapon(dt));
     withCat('enemies', () => updateEnemies(dt));
-    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateHouses(dt); if ((chalT -= dt) <= 0) { chalT = 1; checkChallenges(); } updateInteract(); drawMinimap(); }
+    if (state === 'playing') { updateWaves(dt); updatePickups(dt); updateThrowables(dt); updateArena(dt); updateBox(dt); updateDrops(dt); updateHouses(dt); updateTutorial(dt); if ((chalT -= dt) <= 0) { chalT = 1; checkChallenges(); } updateInteract(); drawMinimap(); }
     updateFx(dt);
     updateDamageNumbers(dt);
     if (state === 'playing') updateHUD(dt);
