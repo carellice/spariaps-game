@@ -51,6 +51,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 - 💀 **Boss ogni 5 ondate, in tre fasi:** il **COLOSSO** nella Classica (razzi a ventaglio e bombardamento annunciato da cerchi rossi), l'**ABOMINIO** nella modalità Zombie (colpo a terra da schivare saltando, raffiche di acido). A ogni fase chiamano rinforzi.
 - 👾 **Nemici speciali:** zombie **sputatori** che colpiscono da lontano, **esplosivi** che scoppiano addosso e **corazzati** resistenti ai proiettili; nella Classica i **cecchini**, che ti puntano con un laser prima di sparare.
 - 🏪 **Edifici da aprire:** nel Quartiere alimentari, farmacia, officina e market sono chiusi da saracinesche. Li apri con i crediti (da 2000 a 3500) e ti ci puoi riparare: i nemici entrano dalle porte, gli zombie scavalcano anche le finestre.
+- 🎖️ **Livelli e armadietto:** i punti di ogni partita e le sfide danno esperienza; salendo di livello (fino al 30) sblocchi mimetiche, guanti e finiture delle armi.
 - 🏆 **Sfide e carriera:** 13 obiettivi da completare (uccisioni, headshot, boss, ondate, precisione…) con i progressi salvati tra una partita e l'altra, più le statistiche di carriera a fine partita.
 - 🔧 **Banco armi:** spendi i crediti per potenziare danno, caricatore e ricarica delle armi che porti con te.
 - 🥤 **Distributore di perk:** tra un'ondata e l'altra compri abilità permanenti come Pelle dura, Mani svelte o Doppio colpo.

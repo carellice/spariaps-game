@@ -320,6 +320,21 @@
   .overlay { position: fixed; inset: 0; z-index: 12; display: flex; padding: 32px; overflow-y: auto;
     background: rgba(7,10,16,.74); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); color: var(--txt); }
   .overlay.hidden { display: none; }
+  .lk-h { font: 700 13px var(--num); letter-spacing: 2px; color: var(--accent2); margin: 22px 0 10px; }
+  .lk-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sw { pointer-events: auto; cursor: pointer; width: 132px; padding: 8px; border-radius: 14px; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.05); color: var(--txt); text-align: left; }
+  .sw i { display: block; height: 52px; border-radius: 9px; margin-bottom: 7px; }
+  .sw b { display: block; font: 700 13px var(--num); letter-spacing: 1px; }
+  .sw small { font-size: 11px; color: var(--mut); }
+  .sw.sel { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(255,107,61,.35); }
+  .sw.sel small { color: var(--accent2); }
+  .sw:disabled { cursor: not-allowed; opacity: .45; }
+  .sw:disabled i { filter: grayscale(.8) brightness(.6); }
+  .lvl { display: flex; align-items: center; gap: 10px; margin-top: 14px; font-size: 13px; color: var(--mut); max-width: 420px; }
+  .lvl b { font: 700 20px var(--num); color: #fff; white-space: nowrap; }
+  .lvl .lbar { flex: 1; height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .lvl .lbar u { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .lvl span { white-space: nowrap; font: 600 12px var(--num); }
   .ov-wrap { width: min(1180px, 100%); margin: auto; animation: rise .45s cubic-bezier(.2,.9,.3,1); }
   .ov-title { font: 700 clamp(40px, 6vw, 60px)/.9 var(--num); letter-spacing: 4px; margin-top: 14px;
     background: linear-gradient(180deg, #fff 30%, var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -542,10 +557,12 @@
         <button id="restartBtn" class="btn2 hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>RICOMINCIA</button>
         <button id="classSwapBtn" class="btn2 hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3l4 4-4 4"/><path d="M20 7H8a4 4 0 0 0-4 4"/><path d="M8 21l-4-4 4-4"/><path d="M4 17h12a4 4 0 0 0 4-4"/></svg><span>CLASSE</span><small id="swapLeft"></small></button>
         <button id="mainMenuBtn" class="btn2 hidden"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>MENU</button>
+        <button id="lockerBtn" class="btn2">ARMADIETTO</button>
         <button id="settingsBtn" class="btn2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>IMPOSTAZIONI</button>
         <button id="quitBtn" class="btn2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><path d="M10 17l-5-5 5-5M5 12h11"/></svg>ESCI</button>
         <div class="best" id="bestBox"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 3h12v3a6 6 0 0 1-5 5.9V15h3v2H8v-2h3v-3.1A6 6 0 0 1 6 6zM3 4h2v3a3 3 0 0 1-2-3zm16 0h2a3 3 0 0 1-2 3zM7 19h10v2H7z"/></svg>Record <b id="best">0</b></div>
       </div>
+      <div class="lvl" id="lvlBox"></div>
       <div id="lockHint"></div>
     </div>
     <div class="controls-card glass">
@@ -718,6 +735,18 @@
       </section>
     </div>
     <div class="set-foot">Premi <kbd>Esc</kbd> (o <kbd class="padB">B</kbd> sul controller) o <b>FATTO</b> per tornare indietro · le impostazioni si salvano automaticamente</div>
+  </div>
+</div>
+
+<div id="locker" class="overlay hidden">
+  <div class="ov-wrap">
+    <div class="tag"><span class="dot"></span><span id="lockTag"></span></div>
+    <div class="ov-title">ARMADIETTO</div>
+    <div class="ov-sub">Mimetiche, guanti e finiture delle armi si sbloccano salendo di livello. L’esperienza arriva dai punti di ogni partita e dalle sfide completate.</div>
+    <div id="lockBody"></div>
+    <div class="ov-actions">
+      <button id="lockClose" class="pbtn">FATTO<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg></button>
+    </div>
   </div>
 </div>
 
@@ -2597,7 +2626,7 @@ const gunMats = {
 };
 // ---------------------------------------------------------------- weapon + hand surfaces
 // each rounded-box face maps the whole texture, so a lighter rim painted on the border reads as worn edges
-function gunTex(base, kind) {
+function gunTex(base, kind, pal) {
   const [c, g] = canvas(256);
   g.fillStyle = base; g.fillRect(0, 0, 256, 256);
   if (kind === 'metal') {
@@ -2617,7 +2646,7 @@ function gunTex(base, kind) {
     g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 2; g.setLineDash([6, 5]); g.strokeRect(14, 14, 228, 228); g.setLineDash([]);
   } else if (kind === 'camo') {
     // woodland-style camo: layered soft blobs, then the fabric weave on top
-    for (const col of ['#5a6246', '#3b4331', '#7a7453', '#2c2f25']) for (let i = 0; i < 34; i++) {
+    for (const col of pal || ['#5a6246', '#3b4331', '#7a7453', '#2c2f25']) for (let i = 0; i < 34; i++) {
       g.fillStyle = col; g.beginPath();
       const x = rand(-10, 266), y = rand(-10, 266);
       for (let k = 0; k < 9; k++) { const a = k / 9 * Math.PI * 2, r = rand(6, 16); g.lineTo(x + Math.cos(a) * r * 1.5, y + Math.sin(a) * r); }
@@ -2663,6 +2692,44 @@ function gunTex(base, kind) {
   M.gloveDark = new THREE.MeshStandardMaterial({ color: 0x131417, roughness: 0.55, metalness: 0.2 });
   M.watch = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x3aff9a, emissiveIntensity: 0.9 });
 }
+// ---------------------------------------------------------------- unlockable looks: sleeve camo, gloves and weapon finish
+const LOOKS = {
+  camo: { name: 'MIMETICA', items: [
+    { id: 'bosco',   name: 'BOSCO',   lvl: 1,  base: '#4b5240', pal: ['#5a6246', '#3b4331', '#7a7453', '#2c2f25'] },
+    { id: 'deserto', name: 'DESERTO', lvl: 3,  base: '#b9a37a', pal: ['#cdb98f', '#9c8660', '#e0d3ae', '#7d6a4a'] },
+    { id: 'urbano',  name: 'URBANO',  lvl: 6,  base: '#7b8088', pal: ['#9aa0a8', '#5a5f66', '#c3c7cc', '#34373c'] },
+    { id: 'artico',  name: 'ARTICO',  lvl: 10, base: '#d4d9dd', pal: ['#eef1f3', '#aeb6bd', '#ffffff', '#7f8890'] },
+    { id: 'notte',   name: 'NOTTE',   lvl: 14, base: '#1c2028', pal: ['#262b36', '#11141a', '#343b4a', '#0a0c10'] },
+    { id: 'tigre',   name: 'TIGRE',   lvl: 20, base: '#c9772a', pal: ['#e08f3c', '#1a1410', '#f0b060', '#0f0b08'] },
+  ] },
+  glove: { name: 'GUANTI', items: [
+    { id: 'cuoio',  name: 'CUOIO',  lvl: 1,  base: '#5b4b3b' },
+    { id: 'nero',   name: 'NERI',   lvl: 2,  base: '#1d1e21' },
+    { id: 'sabbia', name: 'SABBIA', lvl: 5,  base: '#b39b76' },
+    { id: 'rosso',  name: 'ROSSI',  lvl: 9,  base: '#8d2a22' },
+    { id: 'bianco', name: 'BIANCHI', lvl: 13, base: '#d8d6cf' },
+    { id: 'viola',  name: 'VIOLA',  lvl: 18, base: '#5a2f8a' },
+  ] },
+  finish: { name: 'FINITURA ARMI', items: [
+    { id: 'standard', name: 'STANDARD', lvl: 1,  metal: '#2b2f36', poly: '#202328' },
+    { id: 'sabbia',   name: 'SABBIA',   lvl: 4,  metal: '#8c7a5c', poly: '#a8946e' },
+    { id: 'oliva',    name: 'OLIVA',    lvl: 8,  metal: '#4a5540', poly: '#39422f' },
+    { id: 'artico',   name: 'ARTICO',   lvl: 12, metal: '#c3c8ce', poly: '#dfe2e5' },
+    { id: 'rosso',    name: 'CREMISI',  lvl: 16, metal: '#7a1f1c', poly: '#241416' },
+    { id: 'oro',      name: 'ORO',      lvl: 25, metal: '#c9a227', poly: '#17171a' },
+  ] },
+};
+const loadout = { camo: 'bosco', glove: 'cuoio', finish: 'standard' };
+try { Object.assign(loadout, JSON.parse(store.get('spariaps-loadout', '{}'))); } catch {}
+const lookOf = k => LOOKS[k].items.find(i => i.id === loadout[k]) || LOOKS[k].items[0];
+function applyLoadout() {
+  const M = gunMats, set = (m, base, kind, bump, pal) => { m.map?.dispose(); const t = gunTex(base, kind, pal); m.map = t; m.bumpMap = t; m.bumpScale = bump; m.needsUpdate = true; };
+  const c = lookOf('camo'), g = lookOf('glove'), f = lookOf('finish');
+  set(M.sleeve, c.base, 'camo', 1.4, c.pal); set(M.glove, g.base, 'leather', 1);
+  set(M.metal, f.metal, 'metal', 0.6); set(M.polymer, f.poly, 'polymer', 1.2);
+  M.metal.roughness = f.id === 'oro' ? 0.2 : 0.32;
+}
+if (loadout.camo !== 'bosco' || loadout.glove !== 'cuoio' || loadout.finish !== 'standard') applyLoadout();
 function part(group, geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) {
   const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); group.add(m); return m;
 }
@@ -3324,17 +3391,33 @@ let state = 'menu', menuType = 'main', now = 0, score = 0, kills = 0, headshots 
 const bestKey = () => `spariaps-best-${mode}-${diffKey}${MAP.key === 'arena' ? '' : '-' + MAP.key}`;
 // per-match counters for the end screen, and career totals kept between matches
 let earned = 0, spent = 0, bossKills = 0;
-const career = { games: 0, kills: 0, headshots: 0, bosses: 0, time: 0, bestWave: 0, nightmareWave: 0 };
+const career = { games: 0, kills: 0, headshots: 0, bosses: 0, time: 0, bestWave: 0, nightmareWave: 0, xp: 0 };
 try { Object.assign(career, JSON.parse(store.get('spariaps-career', '{}'))); } catch {}
+// levels: the points of every match and the challenges give experience; each level asks for 1000 more than the one before
+const MAX_LEVEL = 30;
+function levelOf(xp = career.xp) {
+  let lvl = 1, need = 2000;
+  while (lvl < MAX_LEVEL && xp >= need) { xp -= need; lvl++; need += 1000; }
+  return { lvl, cur: lvl < MAX_LEVEL ? xp : need, need };
+}
+let lastGain = null;   // { xp, from, to, unlocked: [names] } for the end screen
+function addXp(n) {
+  const from = levelOf().lvl;
+  career.xp += Math.max(0, Math.round(n));
+  const to = levelOf().lvl;
+  const unlocked = to > from ? Object.values(LOOKS).flatMap(g => g.items.filter(i => i.lvl > from && i.lvl <= to).map(i => `${g.name} ${i.name}`)) : [];
+  return { xp: Math.round(n), from, to, unlocked };
+}
 // the running match is added to the career once: when you die, restart or go back to the menu
 let banked = true, chalT = 1;
 function bankMatch() {
   if (banked) return;
-  banked = true;
+  banked = true; lastGain = null;
   if (now < 5 && !kills) return;
   career.games++; career.kills += kills; career.headshots += headshots; career.bosses += bossKills; career.time += now;
   career.bestWave = Math.max(career.bestWave, wave);
   if (diffKey === 'nightmare') career.nightmareWave = Math.max(career.nightmareWave, wave);
+  lastGain = addXp(score);
   store.set('spariaps-career', JSON.stringify(career));
 }
 // challenges: career totals count the match in progress, the others are the best single match so far
@@ -3365,7 +3448,8 @@ function checkChallenges(ended = false) {
     if (v <= old) continue;
     chal[c.id] = v; dirty = true;
     if (v >= c.goal) {
-      toast(`SFIDA COMPLETATA · ${c.name}`, 'pu', 'box', '#8dffb0');
+      addXp(1500); store.set('spariaps-career', JSON.stringify(career));
+      toast(`SFIDA COMPLETATA · ${c.name} · +1500 XP`, 'pu', 'box', '#8dffb0');
       sfxTone(660, 0.12, 0.1, 'sine', 660); sfxTone(880, 0.12, 0.1, 'sine', 880, 0.12); sfxTone(1320, 0.3, 0.1, 'sine', 1320, 0.24);
     }
   }
@@ -6257,7 +6341,8 @@ function showMenu(type, { title, sub, stats = '' } = {}) {
   $('mainMenuBtn').classList.toggle('hidden', type === 'main');
   $('bestBox').classList.toggle('hidden', type === 'pause');
   $('mtag').textContent = `${mode === 'zombie' ? 'ZOMBIE' : 'CLASSICA'} · ${D.name}`;
-  renderChallenges();
+  renderChallenges(); renderLevel();
+  $('lockerBtn').classList.toggle('hidden', type !== 'main');
   $('lockHint').textContent = '';
   refreshPickers();
   menu.classList.remove('hidden');
@@ -6320,6 +6405,29 @@ function enterGame() {
   });
   else if (!('pointerLockElement' in document)) beginPlay();
 }
+// ---------------------------------------------------------------- level display and the locker
+function renderLevel() {
+  const l = levelOf();
+  $('lvlBox').innerHTML = `<b>LIV ${l.lvl}</b><div class="lbar"><u style="width:${Math.round(l.cur / l.need * 100)}%"></u></div><span>${l.lvl < MAX_LEVEL ? `${l.cur} / ${l.need} XP` : 'LIVELLO MASSIMO'}</span>`;
+}
+function renderLocker() {
+  const lvl = levelOf().lvl;
+  $('lockTag').textContent = `LIVELLO ${lvl}`;
+  $('lockBody').innerHTML = Object.entries(LOOKS).map(([k, g]) => `<div class="lk-h">${g.name}</div><div class="lk-row">` + g.items.map(i => {
+    const bg = i.pal ? `linear-gradient(135deg, ${i.pal[0]} 0 25%, ${i.pal[1]} 25% 50%, ${i.pal[2]} 50% 75%, ${i.pal[3]} 75%)` : i.metal ? `linear-gradient(135deg, ${i.metal} 0 60%, ${i.poly} 60%)` : i.base;
+    const open = lvl >= i.lvl, sel = loadout[k] === i.id;
+    return `<button class="sw${sel ? ' sel' : ''}" data-k="${k}" data-id="${i.id}"${open ? '' : ' disabled'}><i style="background:${bg}"></i><b>${i.name}</b><small>${sel ? 'IN USO' : open ? 'Sbloccata' : `Livello ${i.lvl}`}</small></button>`;
+  }).join('') + '</div>').join('');
+}
+$('lockBody').addEventListener('click', e => {
+  const b = e.target.closest('.sw');
+  if (!b || b.disabled) return;
+  loadout[b.dataset.k] = b.dataset.id; store.set('spariaps-loadout', JSON.stringify(loadout));
+  applyLoadout(); renderLocker();
+  if (padFocus) setPadFocus($('lockBody').querySelector(`.sw[data-k="${b.dataset.k}"][data-id="${b.dataset.id}"]`), false);
+});
+$('lockerBtn').addEventListener('click', () => { renderLocker(); $('locker').classList.remove('hidden'); });
+$('lockClose').addEventListener('click', () => $('locker').classList.add('hidden'));
 // ---------------------------------------------------------------- first-match tutorial: a few hints, each ticked off by doing what it says
 const K = (kb, btn) => `<kbd>${keyLabel(kb, btn)}</kbd>`;
 const TUT = [
@@ -6386,7 +6494,8 @@ function gameOver() {
   checkChallenges(true); bankMatch();
   showMenu('dead', {
     title: 'SEI MORTO',
-    sub: (record ? 'Nuovo record personale! ' : '') + `Modalità ${mode === 'zombie' ? 'Zombie' : 'Classica'} · ${D.name.toLowerCase()}.`,
+    sub: (record ? 'Nuovo record personale! ' : '') + `Modalità ${mode === 'zombie' ? 'Zombie' : 'Classica'} · ${D.name.toLowerCase()}.`
+      + (lastGain ? ` +${lastGain.xp} XP.` + (lastGain.to > lastGain.from ? ` Sei salito al livello ${lastGain.to}!` + (lastGain.unlocked.length ? ` Sbloccato: ${lastGain.unlocked.join(', ').toLowerCase()}.` : '') : '') : ''),
     stats: stat(wave, WORD().wave) + stat(kills, 'Uccisioni') + stat(score, 'Punti', record) + stat(acc + '%', 'Precisione') + stat(headshots, 'Headshot')
       + stat(clockStr(now), 'Tempo') + stat(bossKills, 'Boss') + stat(earned, 'Crediti presi') + stat(spent, 'Crediti spesi')
       + `<div class="career glass"><div class="h">CARRIERA</div><b>${career.games}</b> partite · <b>${career.kills}</b> uccisioni · <b>${career.headshots}</b> headshot · <b>${career.bosses}</b> boss · miglior ${WORD().wave.toLowerCase()} <b>${career.bestWave}</b> · tempo di gioco <b>${clockStr(career.time)}</b></div>`,
@@ -6676,6 +6785,7 @@ addEventListener('keydown', e => {
   if (e.code !== 'Escape') return;
   if (!$('quitDlg').classList.contains('hidden')) $('quitDlg').classList.add('hidden');
   else if (!$('settings').classList.contains('hidden')) $('settings').classList.add('hidden');
+  else if (!$('locker').classList.contains('hidden')) $('locker').classList.add('hidden');
 });
 $('play').addEventListener('click', () => {
   initAudio();
@@ -6787,7 +6897,7 @@ document.querySelectorAll('#fpsSeg button').forEach(b => b.addEventListener('cli
 // ---------------------------------------------------------------- menu navigation with the pad
 let padFocus = null, padLayer = null;
 function uiLayer() {
-  for (const id of ['quitDlg', 'settings', 'shop', 'classMenu', 'mapMenu']) if (!$(id).classList.contains('hidden')) return $(id);
+  for (const id of ['quitDlg', 'settings', 'locker', 'shop', 'classMenu', 'mapMenu']) if (!$(id).classList.contains('hidden')) return $(id);
   return state !== 'playing' && !menu.classList.contains('hidden') ? menu : null;
 }
 function focusables(layer) {
@@ -6840,6 +6950,7 @@ function padNav(dx, dy) {
 function padBack(layer) {
   if (layer.id === 'quitDlg') return $('quitNo').click();
   if (layer.id === 'settings') return $('settingsClose').click();
+  if (layer.id === 'locker') return $('lockClose').click();
   if (layer.id === 'classMenu') return $('classBack').click();
   if (layer.id === 'mapMenu') return $('mapBack').click();
   if (layer.id === 'shop') return closeShop();
@@ -6935,7 +7046,7 @@ function pollPad(dt) {
       if (dir !== navHeld) { navHeld = dir; navT = 0.38; if (dir) padNav(...{ u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[dir]); }
       else if (dir && (navT -= dt) <= 0) { navT = 0.11; padNav(...{ u: [0, -1], d: [0, 1], l: [-1, 0], r: [1, 0] }[dir]); }
       const [, scy] = dz(ax[2] || 0, ax[3] || 0, 0.2);
-      if (scy) { const sc = layer.id === 'settings' || layer.id === 'classMenu' || layer.id === 'mapMenu' || layer.id === 'shop' ? layer : layer === menu ? (menu.scrollHeight > menu.clientHeight ? menu : menu.querySelector('.controls-card')) : null; sc?.scrollBy(0, scy * Math.abs(scy) * 1400 * dt); }
+      if (scy) { const sc = layer.id === 'settings' || layer.id === 'locker' || layer.id === 'classMenu' || layer.id === 'mapMenu' || layer.id === 'shop' ? layer : layer === menu ? (menu.scrollHeight > menu.clientHeight ? menu : menu.querySelector('.controls-card')) : null; sc?.scrollBy(0, scy * Math.abs(scy) * 1400 * dt); }
       if (down(0) && !fresh && padFocus && layer.contains(padFocus)) padFocus.click();
       if (down(1)) padBack(layer);
       if (down(9) && layer === menu) $('play').click();
