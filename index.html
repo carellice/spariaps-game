@@ -2833,17 +2833,21 @@ function addArms(g, right, left, leftKind = 'support') {
   hand(g, right, 'grip', -0.28);
   forearm(g, r.clone().add(new V3(0.025, -0.03, 0.045)), r.clone().add(new V3(0.16, -0.36, 0.34)), 0.04);
   if (left) {
-    const l = new V3(...left);
-    if (leftKind === 'grip') hand(g, left, 'grip', -0.1, true);
-    else if (leftKind === 'top') hand(g, left, 'support', 0, false).rotation.z = Math.PI;
-    else hand(g, left, 'support');
-    forearm(g, l.clone().add(new V3(-0.02, -0.045, 0.03)), l.clone().add(new V3(-0.1, -0.28, 0.5)), 0.04, true);
+    // the off hand lives in its own group so it can leave the weapon (reload)
+    const l = new V3(...left), L = new THREE.Group(); g.add(L);
+    if (leftKind === 'grip') hand(L, left, 'grip', -0.1, true);
+    else if (leftKind === 'top') hand(L, left, 'support', 0, false).rotation.z = Math.PI;
+    else hand(L, left, 'support');
+    forearm(L, l.clone().add(new V3(-0.02, -0.045, 0.03)), l.clone().add(new V3(-0.1, -0.28, 0.5)), 0.04, true);
+    g.userData.leftArm = L; g.userData.leftPos = l;
   }
 }
 // off hand for handguns (pistol, revolver, ray gun)
 function supportHandgun(g, lg) {
-  hand(g, [lg.x, lg.y, lg.z], 'cup', -0.25);
-  forearm(g, lg.clone().add(new V3(-0.02, -0.03, 0.03)), lg.clone().add(new V3(-0.2, -0.33, 0.36)), 0.042, true);
+  const L = new THREE.Group(); g.add(L);
+  hand(L, [lg.x, lg.y, lg.z], 'cup', -0.25);
+  forearm(L, lg.clone().add(new V3(-0.02, -0.03, 0.03)), lg.clone().add(new V3(-0.2, -0.33, 0.36)), 0.042, true);
+  g.userData.leftArm = L; g.userData.leftPos = lg.clone();
 }
 // reflex sight: thin ring held by two side posts (nothing inside the ring), faint glass and a small red dot
 function ringSight(g, y, z, r, base) {
@@ -3270,6 +3274,13 @@ gunScene.add(holder);
 for (const w of Object.values(WEAPONS)) { w.group.visible = false; holder.add(w.group); }
 const knife = buildKnife();
 gunScene.add(knife);
+// left arm used only for the throwing gesture
+const throwArm = new THREE.Group();
+{
+  hand(throwArm, [0, 0, 0], 'grip', -0.5, true);
+  forearm(throwArm, new V3(-0.02, -0.04, 0.03), new V3(-0.1, -0.3, 0.42), 0.04, true);
+  throwArm.visible = false; gunScene.add(throwArm);
+}
 
 // ============================================================ player + weapon state
 const player = {
@@ -3950,7 +3961,19 @@ function updateWeapon(dt) {
     else if (p < 0.76) off = -(1 - smooth((p - 0.5) / 0.26)) * 0.32;
     w.mag.visible = vis;
     w.mag.position.y = w.magBase.y + off;
-  } else { w.mag.visible = true; w.mag.position.y = w.magBase.y; }
+    // the off hand lets go, pulls the magazine down and out of view, brings the new one up, taps it home and returns
+    const L = w.group.userData.leftArm;
+    if (L) {
+      const D = w.group.userData.reloadD ||= w.magBase.clone().sub(w.group.userData.leftPos).add(new V3(-0.01, -0.07, 0.03));
+      const k = p < 0.12 ? smooth(p / 0.12) : p > 0.88 ? 1 - smooth((p - 0.88) / 0.12) : 1;
+      L.position.copy(D).multiplyScalar(k); L.position.y += vis ? off : -0.4;
+      L.rotation.z = k * 0.3;
+    }
+  } else {
+    w.mag.visible = true; w.mag.position.y = w.magBase.y;
+    const L = w.group.userData.leftArm;
+    if (L) { L.position.set(0, 0, 0); L.rotation.z = 0; }
+  }
   if (w.slide) {
     const locked = weapon.mags.pistol === 0 && !(weapon.reloading && 1 - weapon.reloadT / reloadOf() > 0.8);
     w.slide.position.z = w.slideBase + (locked ? 0.035 : weapon.slideKick * 0.045);
@@ -3973,6 +3996,13 @@ function updateWeapon(dt) {
   holder.rotation.z += smooth(lower) * 0.5;
   const throwP = weapon.throwT > 0 ? Math.sin((1 - weapon.throwT / THROW_TIME) * Math.PI) : 0;
   holder.position.y -= throwP * 0.22; holder.rotation.x -= throwP * 0.35; holder.position.x += throwP * 0.08;
+  // throw: the left arm comes up from below, winds back and swings forward, then drops away
+  throwArm.visible = weapon.throwT > 0;
+  if (throwArm.visible) {
+    const t = 1 - weapon.throwT / THROW_TIME, up = smooth(clamp(t / 0.3, 0, 1)), fw = smooth(clamp((t - 0.25) / 0.35, 0, 1)), out = smooth(clamp((t - 0.7) / 0.3, 0, 1));
+    throwArm.position.set(-0.26 + fw * 0.14, -0.52 + up * 0.42 - fw * 0.06 - out * 0.45, -0.4 - fw * 0.34);
+    throwArm.rotation.set(0.9 - fw * 1.5, 0.25 - fw * 0.2, 0.2);
+  }
   const meleeDip = meleeP > 0 ? Math.sin(meleeP * Math.PI) : 0;
   holder.position.y -= meleeDip * 0.3;
   holder.position.x += meleeDip * 0.1;
