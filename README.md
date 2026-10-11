@@ -59,6 +59,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 - 🔫 **13 armi**, ognuna con modello, suono e sistema di mira dedicati: tacche metalliche, red dot, olografici e ottiche.
 - 🧍 **5 classi**, ognuna con arma principale e bonus unici. Puoi cambiarla a partita in corso, per un massimo di 2 volte.
 - 💣 **Equipaggiamento da lancio:** granate a frammentazione, stordenti, fumogeni che bloccano la visuale dei nemici e coltelli da lancio.
+- 🏃 **Scivolata e scavalcamento:** accucciati mentre corri per scivolare; correndo contro casse, cofani e davanzali li scavalchi al volo.
 - 🪖 **Sporgersi alla Rainbow Six Siege:** mentre miri, sbuca di lato dalle coperture senza esporti.
 - ⚡ **5 bonus a tempo:** Super salto, Velocità, Munizioni infinite, Danno x3, Invulnerabile.
 - 💥 **Esplosioni spettacolari:** palla di fuoco a strati, onda d'urto, detriti che rimbalzano, colonne di fumo e bruciature sul terreno.
@@ -123,7 +124,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 | Muoviti | `W` `A` `S` `D` |
 | Spara / Mira | `Click SX` / `Click DX` |
 | Corri / Salta (doppio in arena) | `Shift` / `Spazio` |
-| Accucciati | `C` |
+| Accucciati · scivola (mentre corri) | `C` |
 | Sporgiti (mentre miri) | `Q` / `E` |
 | Cambia arma | `1` `2` `Rotella` `Q` |
 | Coltellata | `V` / `F` |
@@ -141,7 +142,7 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 | Muoviti / Guarda | Stick sinistro / destro | Stick sinistro / destro |
 | Spara / Mira | `RT` / `LT` | `R2` / `L2` |
 | Salta | `A` | `✕` |
-| Accucciati | `B` | `○` |
+| Accucciati · scivola (mentre corri) | `B` | `○` |
 | Ricarica / Interagisci | `X` | `□` |
 | Cambia arma | `Y` | `△` |
 | Corri / Sporgiti a sinistra (mentre miri) | `L3` | `L3` |
