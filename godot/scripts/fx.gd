@@ -78,7 +78,7 @@ func setup() -> void:
 	var tr_m := Gfx.additive(Color.WHITE, 1.0)
 	tr_m.vertex_color_use_as_albedo = true
 	tr_m.albedo_color = Color(3, 3, 3, 1)
-	tracers = Pool.new(root, Gfx.box(1, 1, 1), tr_m, 120)
+	tracers = Pool.new(root, Gfx.sharp_box(1, 1, 1), tr_m, 120)
 	var hole_m := StandardMaterial3D.new()
 	hole_m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	hole_m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA

@@ -20,6 +20,7 @@ var muzzle_light: OmniLight3D
 var gun_view: SubViewportContainer
 var gun_vp: SubViewport
 var gun_light: DirectionalLight3D
+var gun_env: Environment
 var grade: ColorRect
 var grade_tint := Color(1, 1, 1)
 var menu_t := 0.0
@@ -90,19 +91,41 @@ func _scene() -> void:
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_energy = 0.5
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
-	env.tonemap_mode = Environment.TONE_MAPPER_ACES
+	# filmic look: AgX keeps bright colours from clipping, a touch of contrast and saturation on top
+	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 0.95
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.18
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_density = 1.0
-	env.fog_sky_affect = 0.6
+	env.fog_sky_affect = 0.3
 	env.glow_enabled = true
 	env.glow_intensity = 0.5
 	env.glow_bloom = 0.0
 	env.glow_hdr_threshold = 1.1
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_SCREEN
 	env.set_glow_level(0, 0.0); env.set_glow_level(1, 0.6); env.set_glow_level(2, 0.8); env.set_glow_level(3, 0.35); env.set_glow_level(4, 0.0)
-	env.ssao_enabled = false
+	# contact shadows in corners and under props, bounced light, reflections on glossy floors
+	env.ssao_radius = 1.1
+	env.ssao_intensity = 2.2
+	env.ssao_power = 1.6
+	env.ssao_detail = 0.6
+	env.ssao_horizon = 0.06
+	env.ssao_light_affect = 0.15
+	env.ssil_radius = 4.0
+	env.ssil_intensity = 0.7
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
+	env.ssr_depth_tolerance = 0.3
+	env.volumetric_fog_density = 0.012
+	env.volumetric_fog_albedo = Color(0.55, 0.5, 0.65)
+	env.volumetric_fog_anisotropy = 0.45
+	env.volumetric_fog_length = 48.0
+	env.volumetric_fog_ambient_inject = 0.15
+	env.volumetric_fog_sky_affect = 0.0
 	var we := WorldEnvironment.new()
 	we.environment = env
 	root.add_child(we)
@@ -111,8 +134,9 @@ func _scene() -> void:
 	sun.shadow_enabled = true
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 70
-	sun.shadow_bias = 0.04
-	sun.shadow_normal_bias = 1.0
+	sun.shadow_bias = 0.03
+	sun.shadow_normal_bias = 0.8
+	sun.shadow_blur = 1.4
 	root.add_child(sun)
 	var cam := Camera3D.new()
 	cam.fov = 75
@@ -159,12 +183,19 @@ func _gun_view() -> void:
 	var groot := Node3D.new()
 	gun_vp.add_child(groot)
 	var genv := Environment.new()
+	# same sky as the world for reflections, so metal parts shine instead of looking painted
 	genv.background_mode = Environment.BG_CLEAR_COLOR
+	genv.sky = env.sky
 	genv.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	genv.ambient_light_color = Color(0.75, 0.8, 0.9)
-	genv.ambient_light_energy = 0.55
-	genv.tonemap_mode = Environment.TONE_MAPPER_ACES
-	genv.tonemap_exposure = 1.0
+	genv.ambient_light_energy = 0.45
+	genv.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	genv.tonemap_mode = Environment.TONE_MAPPER_AGX
+	genv.tonemap_exposure = 1.05
+	genv.adjustment_enabled = true
+	genv.adjustment_contrast = 1.08
+	genv.adjustment_saturation = 1.15
+	gun_env = genv
 	var gwe := WorldEnvironment.new()
 	gwe.environment = genv
 	groot.add_child(gwe)
@@ -210,7 +241,14 @@ func apply_quality() -> void:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS if G.settings.quality == "high" else DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	RenderingServer.directional_shadow_atlas_set_size(4096 if G.settings.quality == "high" else 2048, true)
 	env.glow_enabled = Q.glow
+	env.ssao_enabled = G.settings.quality != "low"
+	env.ssil_enabled = G.settings.quality == "high"
+	env.ssr_enabled = G.settings.quality == "high"
+	sun.light_angular_distance = 0.6 if G.settings.quality == "high" else 0.0
+	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if G.settings.quality != "low" else Viewport.SCREEN_SPACE_AA_DISABLED
+	vp.use_debanding = true
 	G.world.ambient.visible = G.settings.quality != "low"
+	G.world.apply_atmosphere(G.mode)
 
 func apply_fullscreen() -> void:
 	var w := get_window()

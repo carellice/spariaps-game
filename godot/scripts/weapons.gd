@@ -165,6 +165,19 @@ func _materials() -> void:
 		Gfx._rect(im, 3 + i * 14, 3, 14, 26, Color.html(cols[i]))
 	M.patch.albedo_texture = Gfx.tex(im)
 	apply_loadout()
+	for k in M:
+		var mt: StandardMaterial3D = M[k]
+		if mt.emission_enabled and mt.albedo_color.v < 0.1:
+			continue
+		mt.rim_enabled = true
+		mt.rim = 0.22
+		mt.rim_tint = 0.65
+		if mt.metallic >= 0.5:
+			mt.roughness_texture = Gfx.noise_tex()
+			mt.roughness = minf(1.0, mt.roughness * 1.7)
+			mt.clearcoat_enabled = k in ["metal", "chrome", "metalLight"]
+			mt.clearcoat = 0.35
+			mt.clearcoat_roughness = 0.35
 
 func apply_loadout() -> void:
 	var c: Dictionary = G.look_of("camo")

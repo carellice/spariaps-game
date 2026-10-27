@@ -370,7 +370,58 @@ static func armor_tex(base: String, accent: String) -> ImageTexture:
 	return tex(im)
 
 # ============================================================ meshes
-static func box(w: float, h: float, d: float) -> BoxMesh:
+static var _boxes := {}
+
+# box with softly rounded edges: keeps the blocky style, but edges catch the light like a modern low-poly model.
+# Each face is a 4x4 grid; points are pulled onto a rounded box (inner box + radius), normals follow the rounding.
+static func box(w: float, h: float, d: float) -> Mesh:
+	var r := clampf(minf(w, minf(h, d)) * 0.12, 0.0015, 0.05)
+	var key := "%.3f|%.3f|%.3f" % [w, h, d]
+	if _boxes.has(key):
+		return _boxes[key]
+	var half := Vector3(w, h, d) * 0.5
+	var inner := half - Vector3(r, r, r)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# face normal, u axis, v axis
+	var faces := [[Vector3.RIGHT, Vector3.BACK, Vector3.UP], [Vector3.LEFT, Vector3.FORWARD, Vector3.UP],
+		[Vector3.UP, Vector3.RIGHT, Vector3.BACK], [Vector3.DOWN, Vector3.RIGHT, Vector3.FORWARD],
+		[Vector3.BACK, Vector3.LEFT, Vector3.UP], [Vector3.FORWARD, Vector3.RIGHT, Vector3.UP]]
+	for f in faces:
+		var n: Vector3 = f[0]
+		var u: Vector3 = f[1]
+		var v: Vector3 = f[2]
+		var hu := absf(half.dot(u))
+		var hv := absf(half.dot(v))
+		var hn := absf(half.dot(n))
+		var us := [-hu, -hu + r, hu - r, hu]
+		var vs := [-hv, -hv + r, hv - r, hv]
+		var pts: Array = []
+		var nrm: Array = []
+		var uvs: Array = []
+		for j in 4:
+			for i in 4:
+				var q: Vector3 = n * hn + u * us[i] + v * vs[j]
+				var c := q.clamp(-inner, inner)
+				var dn := q - c
+				var nn := dn.normalized() if dn.length_squared() > 1e-12 else n
+				pts.append(c + nn * r)
+				nrm.append(nn)
+				uvs.append(Vector2(us[i] / (2.0 * hu) + 0.5, 0.5 - vs[j] / (2.0 * hv)))
+		for j in 3:
+			for i in 3:
+				var a := i + j * 4
+				for k in [a, a + 1, a + 5, a, a + 5, a + 4]:
+					st.set_normal(nrm[k])
+					st.set_uv(uvs[k])
+					st.add_vertex(pts[k])
+	st.generate_tangents()
+	var m := st.commit()
+	_boxes[key] = m
+	return m
+
+# plain sharp box (tracers and other things that get stretched)
+static func sharp_box(w: float, h: float, d: float) -> BoxMesh:
 	var m := BoxMesh.new()
 	m.size = Vector3(w, h, d)
 	return m

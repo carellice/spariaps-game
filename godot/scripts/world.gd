@@ -15,7 +15,7 @@ var font: SystemFont
 
 var mats := {}
 var deco_mats := {}
-var city := { "facades": [], "signs": [], "glass": null, "pool": null, "lightI": 9.0 }
+var city := { "facades": [], "signs": [], "glass": null, "pool": null, "lightI": 9.0, "lamps": [] }
 var beams: Array = []
 var ambient: GPUParticles3D
 var amb_mode := ""
@@ -395,7 +395,9 @@ func _build_city() -> void:
 		"neonG": Gfx.glow(0x3dff7a, 3.0),
 		"fence": Gfx.transparent(0xa8aeb6, 0.35, 0.5, 0.6),
 	}
-	CM.paints = [0xb3261e, 0x1f4e8c, 0xd8d8d2, 0x2b2f36, 0x3f6b45, 0xc9a227].map(func(c): return Gfx.mat(c, 0.32, 0.55))
+	CM.paints = [0xb3261e, 0x1f4e8c, 0xd8d8d2, 0x2b2f36, 0x3f6b45, 0xc9a227].map(func(c): return Gfx.mat(c, 0.32, 0.55, { "clearcoat_enabled": true, "clearcoat": 0.8, "clearcoat_roughness": 0.12 }))
+	for k in ["bus", "taxi"]:
+		CM[k].clearcoat_enabled = true; CM[k].clearcoat = 0.7; CM[k].clearcoat_roughness = 0.15
 	var stripes := Gfx._img(32, 32, Color.html("#8b9097"))
 	for y in range(0, 32, 8):
 		Gfx._rect(stripes, 0, y, 32, 2, Color(0, 0, 0, 0.38)); Gfx._rect(stripes, 0, y + 2, 32, 2, Color(1, 1, 1, 0.2))
@@ -789,6 +791,15 @@ func lamp(x: float, z: float, ax: float, az: float) -> void:
 	put(Gfx.box(0.34, 0.12, 0.7), mats.trim, x + ax * 1.5, 5.9, z + az * 1.5, ry)
 	put(Gfx.plane(0.26, 0.56), deco_mats.lamp, x + ax * 1.5, 5.83, z + az * 1.5, ry, Basis(Vector3.RIGHT, PI2))
 	put(flat_quad(10, 10), city.pool, x + ax * 1.5, 0.1, z + az * 1.5, 0, Basis(), 0)
+	var l := OmniLight3D.new()
+	l.light_color = Color(1, 0.78, 0.5)
+	l.omni_range = 14
+	l.omni_attenuation = 1.3
+	l.light_energy = 0
+	l.light_volumetric_fog_energy = 2.0
+	l.position = Vector3(x + ax * 1.5, 5.5, z + az * 1.5)
+	B.root.add_child(l)
+	city.lamps.append(l)
 
 func bench(x: float, z: float, rot: int) -> void:
 	var T := _turned(x, z, rot)
@@ -821,7 +832,7 @@ func scooter(x: float, z: float, ry: float, paint: Material) -> void:
 func shelf(x: float, z: float, length: float, along_x: bool, h := 1.7, sides := [-1, 1]) -> void:
 	var stock: Array = CM.paints + [CM.cornice, CM.awnY, CM.awnR, CM.awnB]
 	var P := func(t: float, o: float) -> Vector2: return Vector2(x + t, z + o) if along_x else Vector2(x + o, z + t)
-	var Gm := func(l: float, hh: float, dd: float) -> BoxMesh: return Gfx.box(l if along_x else dd, hh, dd if along_x else l)
+	var Gm := func(l: float, hh: float, dd: float) -> Mesh: return Gfx.box(l if along_x else dd, hh, dd if along_x else l)
 	add_box(x, z, length if along_x else 0.3, h, 0.3 if along_x else length, CM.rack)
 	var lo := 0.39 if sides.has(-1) else 0.17
 	var hi := 0.39 if sides.has(1) else 0.17
@@ -1106,9 +1117,9 @@ func try_jump_pad() -> void:
 
 # ============================================================ atmosphere per mode
 const ATMOS := {
-	"classic": { "fog": 0xc4d3e2, "near": 45.0, "far": 175.0, "top": 0x2a64b0, "bottom": 0x8c98a6, "sun": 0xfff0dd, "sunI": 1.35, "amb": 0.32, "exposure": 0.95, "glow": 1.0,
+	"classic": { "fog": 0xb9cde4, "near": 60.0, "far": 230.0, "top": 0x1f5cb8, "bottom": 0x8c98a6, "sun": 0xffe9cf, "sunI": 1.7, "amb": 0.34, "exposure": 1.0, "glow": 1.0,
 		"neon": 0xff6a2a, "neonB": 0x3aa8ff, "windows": 0xffc070, "tint": Color(1, 1, 1), "bloom": 0.5, "torch": 0.0 },
-	"zombie": { "fog": 0x241c2a, "near": 14.0, "far": 85.0, "top": 0x07060f, "bottom": 0x151016, "sun": 0x9fb4ff, "sunI": 0.35, "amb": 0.14, "exposure": 1.05, "glow": 0.35,
+	"zombie": { "fog": 0x241c2a, "near": 14.0, "far": 85.0, "top": 0x07060f, "bottom": 0x151016, "sun": 0x9fb4ff, "sunI": 0.5, "amb": 0.22, "exposure": 1.35, "glow": 0.35,
 		"neon": 0xff2a1a, "neonB": 0x7a3aff, "windows": 0xff5030, "tint": Color(0.92, 1.0, 0.95), "bloom": 0.75, "torch": 1.0 },
 }
 
@@ -1126,6 +1137,11 @@ func apply_atmosphere(m: String) -> void:
 	sky.ground_horizon_color = G.col(a.fog)
 	sky.ground_bottom_color = G.col(a.bottom)
 	sky.sun_angle_max = 30.0 * a.glow
+	# soft clouds by day, a starfield at night (panorama textures over the gradient sky)
+	sky.sky_cover = _stars() if m == "zombie" else _clouds()
+	sky.sky_cover_modulate = Color(0.85, 0.85, 1.0, 0.9) if m == "zombie" else Color(1, 1, 1, 0.75)
+	sky.sky_curve = 0.12
+	sky.sky_energy_multiplier = 1.0
 	M.sun.light_color = G.col(a.sun)
 	M.sun.light_energy = a.sunI
 	env.ambient_light_energy = a.amb
@@ -1149,15 +1165,63 @@ func apply_atmosphere(m: String) -> void:
 		var base := c / maxf(0.001, maxf(c.r, maxf(c.g, c.b)))
 		s.modulate = Color(base.r * sk, base.g * sk, base.b * sk)
 	city.glass.emission_energy_multiplier = (1.3 if night else 0.22) * L
-	city.pool.albedo_color.a = 0.5 * minf(1.0, L) if night else 0.0
+	city.pool.albedo_color.a = 0.22 * minf(1.0, L) if night else 0.0
 	city.lightI = (2.2 if night else 3.0) * (0.4 + 0.6 * minf(1.0, L))
 	house_lights()
+	for l in city.lamps:
+		l.light_energy = 4.0 * (0.4 + 0.6 * minf(1.0, L)) if night else 0.0
+		l.visible = night
 	env.glow_intensity = a.bloom * L * 0.8
 	M.grade_tint = a.tint
 	M.torch.light_energy = a.torch * 6.0 * (0.4 + 0.6 * minf(1.0, L))
 	M.torch.visible = a.torch > 0
+	# at night the air thickens: the torch, muzzle flashes and explosions light up the haze
+	env.volumetric_fog_enabled = night and G.settings.quality != "low"
+	env.volumetric_fog_density = 0.009 if G.settings.quality == "high" else 0.006
+	env.volumetric_fog_emission = Color(0.05, 0.03, 0.07)
+	env.volumetric_fog_emission_energy = 0.35
+	M.torch.light_volumetric_fog_energy = 1.6
 	if G.items:
 		G.items.atmosphere_changed()
+
+var _cloud_tex: Texture2D
+var _star_tex: Texture2D
+
+func _clouds() -> Texture2D:
+	if _cloud_tex == null:
+		var n := FastNoiseLite.new()
+		n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+		n.frequency = 0.006
+		n.fractal_octaves = 5
+		n.fractal_gain = 0.55
+		var t := NoiseTexture2D.new()
+		t.width = 1024; t.height = 512
+		t.seamless = true
+		t.noise = n
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.52, 0.72, 1.0])
+		g.colors = PackedColorArray([Color(1, 1, 1, 0), Color(1, 1, 1, 0), Color(1, 1, 1, 0.75), Color(1, 1, 1, 0.95)])
+		t.color_ramp = g
+		_cloud_tex = t
+	return _cloud_tex
+
+func _stars() -> Texture2D:
+	if _star_tex == null:
+		var im := Image.create(2048, 1024, false, Image.FORMAT_RGBA8)
+		im.fill(Color(0, 0, 0, 0))
+		for i in 2200:
+			var x := randi() % 2048
+			var y := randi() % 470   # upper half only: the sky above the horizon
+			var b := pow(randf(), 3.0)
+			var c := Color(0.85 + randf() * 0.15, 0.85 + randf() * 0.1, 1.0, 0.35 + b * 0.65)
+			im.set_pixel(x, y, c)
+			if b > 0.75:
+				for o in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var p: Vector2i = Vector2i(x, y) + o
+					if p.x >= 0 and p.x < 2048 and p.y >= 0:
+						im.set_pixelv(p, Color(c.r, c.g, c.b, c.a * 0.4))
+		_star_tex = ImageTexture.create_from_image(im)
+	return _star_tex
 
 # ============================================================ collision helpers
 func collide_circle(pos: Vector3, r: float, feet_y: float, height: float) -> Vector3:

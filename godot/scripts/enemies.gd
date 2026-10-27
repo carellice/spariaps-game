@@ -108,6 +108,9 @@ class Enemy extends RefCounted:
 
 	func mat(color: Variant, rough := 0.8, metal := 0.0, tex: Texture2D = null) -> StandardMaterial3D:
 		var m := Gfx.mat(color, rough, metal)
+		m.rim_enabled = true
+		m.rim = 0.3
+		m.rim_tint = 0.4
 		if tex:
 			m.albedo_texture = tex
 		mats.append(m)
