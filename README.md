@@ -186,6 +186,18 @@ Di giorno affronti **bot corazzati** su un'arena piena di luci al neon. Di notte
 > **Windows · collegamento con l'icona:** tasto destro su `Spariaps.bat` → *Mostra altre opzioni* → *Crea collegamento*. Poi apri le *Proprietà* del collegamento → *Cambia icona…* e scegli **`Spariaps.ico`**.
 3. Scegli **modalità** e **difficoltà**, premi **GIOCA**, seleziona la **mappa** e la **classe** e buona fortuna.
 
+### 🖥️ VERSIONE WINDOWS NATIVA
+
+Oltre alla versione per browser c'è una versione nativa per Windows, riscritta con il motore [Godot 4](https://godotengine.org): stesse mappe, modalità, armi, nemici, boss, negozi, progressi e comandi, ma molto più leggera perché gira direttamente sulla scheda video (Vulkan), senza browser.
+
+- **Giocare:** apri **`build/Spariaps.exe`** (un solo file, non serve installare nulla). Parte a schermo intero; dalle impostazioni puoi passare alla finestra.
+- **Codice:** il progetto Godot è nella cartella **`godot/`** (script in `godot/scripts/`). Si apre con Godot 4.7.
+- **Ricreare l'eseguibile:** con i modelli di esportazione di Godot 4.7.2 installati, dalla cartella `godot/` esegui
+  `godot --headless --path . --export-release "Windows Desktop" ../build/Spariaps.exe`
+- **Prova automatica:** `Spariaps.exe -- --autotest` gioca da solo una partita in ogni modalità (menu, negozi, cassa, tutte le armi, boss, morte) e si chiude; con `--shots=CARTELLA` salva anche delle schermate.
+
+I progressi della versione nativa (livello, sfide, armadietto, impostazioni) sono salvati a parte, in `%APPDATA%\Godot\app_userdata\Spariaps\spariaps.cfg`.
+
 Dalle **Impostazioni** puoi regolare:
 - luci, luminosità e qualità grafica (3 livelli);
 - sensibilità di mouse e controller;
@@ -210,7 +222,9 @@ Spariaps/
 ├── js/               → codice del gioco, diviso per argomento (mappe, armi, nemici, menu…)
 ├── vendor/           → motore grafico three.js, incluso nel gioco
 ├── screenshots/      → immagini di gioco per questa pagina
-└── Music/            → colonna sonora (brani del menu e loop di gioco)
+├── Music/            → colonna sonora (brani del menu e loop di gioco)
+├── godot/            → versione Windows nativa (progetto Godot 4: scripts/, musica in Ogg, icona)
+└── build/            → Spariaps.exe, la versione nativa esportata (non inclusa nel repository)
 ```
 
 ---
@@ -219,6 +233,7 @@ Spariaps/
 
 - **Musica:** i brani *Classica* e *Zombie* sono stati generati con l'intelligenza artificiale tramite [Suno](https://suno.com), con un piano a pagamento che ne consente l'uso. I loop di gioco sono ritagli degli stessi brani, preparati con Audjust.
 - **Motore grafico:** [three.js](https://threejs.org) r160, licenza MIT (`vendor/three.LICENSE`).
+- **Versione nativa:** [Godot Engine](https://godotengine.org) 4.7, licenza MIT.
 
 ---
 
