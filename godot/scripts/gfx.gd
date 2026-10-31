@@ -7,6 +7,8 @@ static var _shaders := {}
 static var _noise: NoiseTexture2D
 static var _noise_n: NoiseTexture2D
 static var _radial := {}
+# mesh smoothness: 1 for the world, higher while the first-person arms and guns are built (seen up close)
+static var detail := 1.0
 
 # ============================================================ materials
 static func mat(color: Variant, rough := 0.8, metal := 0.0, extra := {}) -> StandardMaterial3D:
@@ -374,9 +376,14 @@ static var _boxes := {}
 
 # box with softly rounded edges: keeps the blocky style, but edges catch the light like a modern low-poly model.
 # Each face is a 4x4 grid; points are pulled onto a rounded box (inner box + radius), normals follow the rounding.
-static func box(w: float, h: float, d: float) -> Mesh:
-	var r := clampf(minf(w, minf(h, d)) * 0.12, 0.0015, 0.05)
-	var key := "%.3f|%.3f|%.3f" % [w, h, d]
+# rounded box: every edge is a real curve (several segments) on small objects, a single chamfer on big world blocks
+static func box(w: float, h: float, d: float, round := -1.0) -> Mesh:
+	var small := minf(w, minf(h, d)) < 0.6
+	if round < 0.0:
+		round = 0.12 * detail if small else 0.12
+	var r := clampf(minf(w, minf(h, d)) * round, 0.0015, 0.05)
+	var seg := (3 if detail > 1.0 else 2) if small else 1
+	var key := "%.3f|%.3f|%.3f|%.3f|%d" % [w, h, d, r, seg]
 	if _boxes.has(key):
 		return _boxes[key]
 	var half := Vector3(w, h, d) * 0.5
@@ -394,13 +401,19 @@ static func box(w: float, h: float, d: float) -> Mesh:
 		var hu := absf(half.dot(u))
 		var hv := absf(half.dot(v))
 		var hn := absf(half.dot(n))
-		var us := [-hu, -hu + r, hu - r, hu]
-		var vs := [-hv, -hv + r, hv - r, hv]
+		# grid lines: the edge strip on each side is split into seg steps, projected onto the rounded corner below
+		var us := []
+		var vs := []
+		for i in seg + 1:
+			us.append(-hu + r * i / seg); vs.append(-hv + r * i / seg)
+		for i in seg + 1:
+			us.append(hu - r + r * i / seg); vs.append(hv - r + r * i / seg)
+		var n4 := us.size()
 		var pts: Array = []
 		var nrm: Array = []
 		var uvs: Array = []
-		for j in 4:
-			for i in 4:
+		for j in n4:
+			for i in n4:
 				var q: Vector3 = n * hn + u * us[i] + v * vs[j]
 				var c := q.clamp(-inner, inner)
 				var dn := q - c
@@ -408,13 +421,14 @@ static func box(w: float, h: float, d: float) -> Mesh:
 				pts.append(c + nn * r)
 				nrm.append(nn)
 				uvs.append(Vector2(us[i] / (2.0 * hu) + 0.5, 0.5 - vs[j] / (2.0 * hv)))
-		for j in 3:
-			for i in 3:
-				var a := i + j * 4
-				for k in [a, a + 1, a + 5, a, a + 5, a + 4]:
+		for j in n4 - 1:
+			for i in n4 - 1:
+				var a := i + j * n4
+				for k in [a, a + 1, a + n4 + 1, a, a + n4 + 1, a + n4]:
 					st.set_normal(nrm[k])
 					st.set_uv(uvs[k])
 					st.add_vertex(pts[k])
+	st.index()
 	st.generate_tangents()
 	var m := st.commit()
 	_boxes[key] = m
@@ -429,27 +443,63 @@ static func sharp_box(w: float, h: float, d: float) -> BoxMesh:
 static func cyl(rt: float, rb: float, h: float, seg := 16, open := false) -> CylinderMesh:
 	var m := CylinderMesh.new()
 	m.top_radius = rt; m.bottom_radius = rb; m.height = h
-	m.radial_segments = seg; m.rings = 1
+	m.radial_segments = _segs(seg, maxf(rt, rb)); m.rings = 1
 	m.cap_top = not open; m.cap_bottom = not open
 	return m
 
 static func sphere(r: float, seg := 16, rings := 10) -> SphereMesh:
 	var m := SphereMesh.new()
 	m.radius = r; m.height = r * 2.0
-	m.radial_segments = seg; m.rings = rings
+	m.radial_segments = _segs(maxi(seg, 12), r); m.rings = _segs(maxi(rings, 8), r) / 2 * 2
 	return m
 
 static func capsule(r: float, h: float, seg := 12) -> CapsuleMesh:
 	var m := CapsuleMesh.new()
 	m.radius = r; m.height = maxf(h, r * 2.0 + 0.001)
-	m.radial_segments = seg; m.rings = 4
+	m.radial_segments = _segs(maxi(seg, 12), r); m.rings = 4 if detail <= 1.0 else 8
 	return m
 
 static func torus(r: float, tube: float, seg := 32) -> TorusMesh:
 	var m := TorusMesh.new()
 	m.inner_radius = r - tube; m.outer_radius = r + tube
-	m.rings = seg; m.ring_segments = 8
+	m.rings = _segs(seg, r); m.ring_segments = _segs(12, tube)
 	return m
+
+# small round things get more segments (their facets are what makes them look blocky); big ones keep the count asked
+static func _segs(seg: int, r: float) -> int:
+	return int(seg * detail) if r < 0.3 else seg
+
+# surface of revolution along +Y, centred like a cylinder: profile = [[t 0..1 along h, radius factor], ...];
+# smooth normals from the profile slope, UVs wrap once around and repeat along the length at the same scale
+static func lathe(profile: Array, r: float, h: float, seg := 28) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var n := profile.size()
+	var circ := TAU * r
+	var rows: Array = []
+	for i in n:
+		var y: float = (profile[i][0] - 0.5) * h
+		var rad: float = profile[i][1] * r
+		var a: Array = profile[maxi(i - 1, 0)]
+		var b: Array = profile[mini(i + 1, n - 1)]
+		var dy: float = (b[0] - a[0]) * h
+		var dr: float = (b[1] - a[1]) * r
+		rows.append([y, rad, Vector2(dy, -dr).normalized() if Vector2(dy, dr).length() > 1e-6 else Vector2(1, 0)])
+	for i in n - 1:
+		for j in seg:
+			var quad := [[i, j], [i, j + 1], [i + 1, j + 1], [i, j], [i + 1, j + 1], [i + 1, j]]
+			for q in quad:
+				var row: Array = rows[q[0]]
+				var ang: float = TAU * q[1] / seg
+				var c := Vector3(cos(ang), 0, sin(ang))
+				var nn: Vector2 = row[2]
+				st.set_normal((c * nn.x + Vector3.UP * nn.y).normalized())
+				st.set_uv(Vector2(float(q[1]) / seg, (row[0] / h + 0.5) * h / circ))
+				st.add_vertex(c * row[1] + Vector3.UP * row[0])
+	# indexed like the built-in primitives: a Batch that mixes indexed and plain meshes drops the plain ones
+	st.index()
+	st.generate_tangents()
+	return st.commit()
 
 static func plane(w: float, h: float) -> QuadMesh:
 	var m := QuadMesh.new()

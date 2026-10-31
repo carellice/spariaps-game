@@ -164,6 +164,12 @@ func _materials() -> void:
 	for i in 3:
 		Gfx._rect(im, 3 + i * 14, 3, 14, 26, Color.html(cols[i]))
 	M.patch.albedo_texture = Gfx.tex(im)
+	# fine fabric and leather grain, so sleeve and gloves catch the light like cloth instead of plastic
+	for k in ["sleeve", "glove", "strap"]:
+		M[k].normal_enabled = true
+		M[k].normal_texture = Gfx.noise_normal()
+		M[k].normal_scale = 0.35
+		M[k].uv1_scale = Vector3.ONE * (1.5 if k == "sleeve" else 3.0)
 	apply_loadout()
 	for k in M:
 		var mt: StandardMaterial3D = M[k]
@@ -231,7 +237,7 @@ func _caps(batch: Gfx.Batch, a: Vector3, b: Vector3, r: float, m: Material) -> v
 	var L := d.length()
 	if L < 1e-4:
 		return
-	batch.add(Gfx.capsule(r, maxf(L, 2.0 * r + 0.001), 8), m, Transform3D(Basis(Quaternion(Vector3.UP, d / L)), (a + b) * 0.5), false)
+	batch.add(Gfx.capsule(r, maxf(L, 2.0 * r + 0.001), 12), m, Transform3D(Basis(Quaternion(Vector3.UP, d / L)), (a + b) * 0.5), false)
 
 # gloved hands: each finger is a bent 3-point chain of capsules; fingerless gloves leave the fingertips bare
 const HAND := {
@@ -265,8 +271,9 @@ func hand(parent: Node3D, pos: Vector3, kind: String, rot_x := 0.0, flip := fals
 	var p: Array = h.palm
 	var k: Array = h.pad
 	var batch := Gfx.Batch.new()
-	batch.at(Gfx.box(p[0], p[1], p[2]), M.glove, Vector3(p[3], p[4], p[5]), Vector3.ZERO, false)
-	batch.at(Gfx.box(k[0], k[1], k[2]), M.knuckle, Vector3(k[3], k[4], k[5]), Vector3.ZERO, false)
+	# soft, padded palm and knuckle guard instead of hard blocks
+	batch.at(Gfx.box(p[0], p[1], p[2], 0.42), M.glove, Vector3(p[3], p[4], p[5]), Vector3.ZERO, false)
+	batch.at(Gfx.box(k[0], k[1], k[2], 0.45), M.knuckle, Vector3(k[3], k[4], k[5]), Vector3.ZERO, false)
 	var bn := Vector3(h.back[0], h.back[1], h.back[2]).normalized()
 	var knuckles: Array = []
 	for fi in h.fingers.size():
@@ -283,22 +290,27 @@ func hand(parent: Node3D, pos: Vector3, kind: String, rot_x := 0.0, flip := fals
 	batch.commit(g)
 	return g
 
-# forearm from the wrist (a) back to the elbow (b): tapered camo sleeve, glove cuff, flag patch or a watch
+# forearm from the wrist (a) back to the elbow (b): a shaped camo sleeve (slim wrist, fuller muscle, rolled-up cuff)
+# over the glove's cuff and strap, with a flag patch or a watch
+const SLEEVE := [[0.0, 0.0], [0.0, 0.62], [0.008, 0.86], [0.03, 0.9], [0.18, 1.0], [0.42, 1.2], [0.62, 1.3], [0.82, 1.27], [0.95, 1.16], [0.99, 0.9], [1.0, 0.0]]
+const CUFF := [[0.0, 0.0], [0.0, 0.7], [0.06, 0.84], [0.2, 0.88], [0.8, 0.93], [1.0, 0.95], [1.0, 0.0]]
 func forearm(g: Node3D, a: Vector3, b: Vector3, r: float, watch := false) -> void:
 	var d := (b - a)
 	var L := d.length() + 0.1
 	var dir := d.normalized()
 	var basis := Basis(Quaternion(Vector3.UP, dir))
 	var batch := Gfx.Batch.new()
-	batch.add(Gfx.cyl(r * 1.3, r * 0.9, L, 14), M.sleeve, Transform3D(basis, a + dir * (L * 0.5)), false)
-	batch.add(Gfx.cyl(r * 0.97, r * 0.9, 0.06, 14), M.glove, Transform3D(basis, a + dir * 0.012), false)
-	batch.add(Gfx.cyl(r * 1.02, r * 1.02, 0.02, 14), M.strap, Transform3D(basis, a + dir * 0.024), false)
+	var s0 := 0.055
+	batch.add(Gfx.lathe(SLEEVE, r, L - s0), M.sleeve, Transform3D(basis, a + dir * (s0 + (L - s0) * 0.5)), false)
+	batch.add(Gfx.torus(r * 0.98, r * 0.2, 28), M.sleeve, Transform3D(basis, a + dir * (s0 + 0.006)), false)
+	batch.add(Gfx.lathe(CUFF, r, 0.09), M.glove, Transform3D(basis, a + dir * 0.03), false)
+	batch.add(Gfx.torus(r * 0.92, r * 0.09, 28), M.strap, Transform3D(basis, a + dir * 0.03), false)
 	var up := (Vector3.UP - dir * dir.y).normalized()
 	if watch:
-		batch.add(Gfx.cyl(r * 1.0, r * 1.0, 0.016, 14), M.gloveDark, Transform3D(basis, a + dir * 0.09 * L), false)
-		batch.add(Gfx.box(0.026, 0.006, 0.022), M.watch, Transform3D(basis, a + dir * 0.09 * L + up * r * 1.02), false)
+		batch.add(Gfx.torus(r * 0.93, r * 0.12, 28), M.gloveDark, Transform3D(basis, a + dir * 0.012), false)
+		batch.add(Gfx.box(0.026, 0.007, 0.022, 0.4), M.watch, Transform3D(basis, a + dir * 0.012 + up * r * 1.02), false)
 	else:
-		batch.add(Gfx.box(0.04, 0.003, 0.03), M.patch, Transform3D(basis, a + dir * 0.34 * L + up * r * 1.15), false)
+		batch.add(Gfx.box(0.04, 0.003, 0.03), M.patch, Transform3D(basis, a + dir * 0.34 * L + up * r * 1.27), false)
 	batch.commit(g)
 
 func add_arms(md: Dictionary, right: Vector3, left: Variant = null, left_kind := "support") -> void:
@@ -607,6 +619,8 @@ func world_gun(k: String) -> Node3D:
 # ============================================================ gun viewport (its own little world, drawn over the scene)
 func setup(gun_world_root: Node3D, cam: Camera3D) -> void:
 	_materials()
+	# the first-person models fill half the screen: build them with smoother curves than the world
+	Gfx.detail = 2.0
 	gun_cam = cam
 	holder = Node3D.new()
 	gun_world_root.add_child(holder)
@@ -622,6 +636,7 @@ func setup(gun_world_root: Node3D, cam: Camera3D) -> void:
 	forearm(throw_arm, Vector3(-0.02, -0.04, 0.03), Vector3(-0.1, -0.3, 0.42), 0.04, true)
 	throw_arm.visible = false
 	gun_world_root.add_child(throw_arm)
+	Gfx.detail = 1.0
 	gun_muzzle_light = OmniLight3D.new()
 	gun_muzzle_light.light_color = G.col(0xffa040)
 	gun_muzzle_light.omni_range = 3
