@@ -375,6 +375,8 @@ func _build_plan() -> void:
 	at.call(0.8, func(): _snap("settings"); G.ui.escape())
 	at.call(0.3, func(): G.ui.open_locker())
 	at.call(0.5, func(): G.ui._pick_look("camo", "bosco"); _snap("locker"); G.ui.escape())
+	at.call(0.3, func(): G.ui.m.quit.pressed.emit())
+	at.call(0.4, func(): assert(G.ui.m.quit_dlg.visible); _snap("quit"); G.ui.escape())
 	at.call(0.3, func(): G.ui.show_map_menu())
 	at.call(1.5, func(): _snap("maps"); G.ui._pick_map("city"))
 	at.call(0.3, func(): G.ui._show(G.ui.m.map, false); G.ui.show_class_menu(false))

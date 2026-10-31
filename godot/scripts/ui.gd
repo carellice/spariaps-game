@@ -629,7 +629,7 @@ func _build_menu() -> void:
 	m.mainmenu = btn(acts, "MENU", func(): G.game.go_main_menu())
 	m.locker = btn(acts, "ARMADIETTO", func(): open_locker())
 	m.settings = btn(acts, "IMPOSTAZIONI", func(): open_settings())
-	m.quit = btn(acts, "ESCI", func(): _show(m.quit_dlg, true))
+	m.quit = btn(acts, "ESCI", func(): _show(m.q, true); _focus(m.q.no))
 	for b3 in [m.restart, m.swap, m.mainmenu, m.locker, m.settings, m.quit]:
 		b3.custom_minimum_size.y = 56
 	m.best = label(acts, "", 16, MUT, true)
