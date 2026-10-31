@@ -28,6 +28,8 @@ var fps_n := 0
 var fps_t := 0.0
 var autotest := false
 var auto_t := 0.0
+var booting := true
+var boot := {}
 
 const GRADE_SHADER := """
 shader_type canvas_item;
@@ -57,23 +59,111 @@ func _ready() -> void:
 	autotest = OS.get_cmdline_user_args().has("--autotest")
 	get_tree().auto_accept_quit = false
 	get_window().title = "Spariaps"
+	_boot_screen()
+	await _boot_step(0.04, "Preparo la scena")
 	_scene()
+	# the game nodes stay frozen until everything is built, so nothing reacts to input half-way through
+	var parts: Array[Node] = []
 	for s in [World_, Audio_, Fx_, Player_, Weapons_, Enemies_, Items_, Game_, Inp_, Ui_]:
 		var n := Node.new()
 		n.set_script(s)
+		n.process_mode = Node.PROCESS_MODE_DISABLED
 		add_child(n)
+		parts.append(n)
 	G.fx.setup()
+	await _boot_step(0.15, "Costruisco le mappe")
+	if autotest:
+		_snap("loading")
 	G.world.build()
+	await _boot_step(0.5, "Preparo armi e nemici")
 	_gun_view()
 	G.enemies.setup()
 	G.items.setup()
 	_grade()
+	await _boot_step(0.68, "Carico l’interfaccia")
 	G.ui.build()
 	G.world.set_map(str(G.sget("map", "city")))
 	G.world.apply_atmosphere(G.mode)
 	apply_quality()
 	apply_fullscreen()
+	await _boot_step(0.82, "Compilo gli shader")
+	for n in parts:
+		n.process_mode = Node.PROCESS_MODE_INHERIT
+	booting = false
 	G.game.show_main_menu()
+	# a few frames of the real scene behind the loading screen: shaders get compiled before it fades away
+	for i in 8:
+		boot.bar.value = lerpf(0.82, 1.0, (i + 1) / 8.0)
+		await get_tree().process_frame
+	boot.status.text = "Pronto"
+	var tw := create_tween()
+	tw.tween_property(boot.root, "modulate:a", 0.0, 0.35).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(boot.layer.queue_free)
+
+# ============================================================ loading screen shown while the game builds itself
+func _boot_screen() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	add_child(layer)
+	var root := ColorRect.new()
+	root.color = Color(0.043, 0.059, 0.086)
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(root)
+	var glow := TextureRect.new()
+	var gt := GradientTexture2D.new()
+	gt.fill = GradientTexture2D.FILL_RADIAL
+	gt.fill_from = Vector2(0.5, 0.5); gt.fill_to = Vector2(1.0, 0.5)
+	gt.gradient = Gradient.new()
+	gt.gradient.colors = PackedColorArray([Color(1, 0.42, 0.24, 0.16), Color(1, 0.42, 0.24, 0.0)])
+	glow.texture = gt
+	glow.set_anchors_preset(Control.PRESET_FULL_RECT)
+	glow.stretch_mode = TextureRect.STRETCH_SCALE
+	root.add_child(glow)
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(center)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 18)
+	center.add_child(v)
+	var logo := TextureRect.new()
+	logo.texture = load("res://icon.png")
+	logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	logo.custom_minimum_size = Vector2(120, 120)
+	v.add_child(logo)
+	var bold := SystemFont.new()
+	bold.font_names = PackedStringArray(["Bahnschrift", "Segoe UI Semibold", "Segoe UI"])
+	bold.font_weight = 700
+	var title := Label.new()
+	title.text = "SPARIAPS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_override("font", bold)
+	title.add_theme_font_size_override("font_size", 64)
+	title.add_theme_color_override("font_color", Color("#eef2f7"))
+	v.add_child(title)
+	var bar := ProgressBar.new()
+	bar.min_value = 0.0; bar.max_value = 1.0; bar.step = 0.0
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(420, 8)
+	for k in [["background", Color(1, 1, 1, 0.08)], ["fill", Color("#ff6b3d")]]:
+		var st := StyleBoxFlat.new()
+		st.bg_color = k[1]
+		st.set_corner_radius_all(4)
+		bar.add_theme_stylebox_override(k[0], st)
+	v.add_child(bar)
+	var status := Label.new()
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	status.add_theme_font_override("font", bold)
+	status.add_theme_font_size_override("font_size", 15)
+	status.add_theme_color_override("font_color", Color(0.93, 0.95, 0.97, 0.6))
+	v.add_child(status)
+	boot = { "layer": layer, "root": root, "bar": bar, "status": status }
+
+# shows the next phase and waits one frame so it is actually drawn before the heavy work starts
+func _boot_step(p: float, text: String) -> void:
+	boot.bar.value = p
+	boot.status.text = text.to_upper()
+	await get_tree().process_frame
 
 func _scene() -> void:
 	var root := Node3D.new()
@@ -263,10 +353,15 @@ func apply_fullscreen() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		G.game.quit_game()
+		if booting:
+			get_tree().quit()
+		else:
+			G.game.quit_game()
 
 # ============================================================ main loop
 func _process(delta: float) -> void:
+	if booting:
+		return
 	var dt := minf(delta, 0.05)
 	if G.settings.fps:
 		fps_n += 1; fps_t += delta
@@ -376,7 +471,8 @@ func _build_plan() -> void:
 	at.call(0.3, func(): G.ui.open_locker())
 	at.call(0.5, func(): G.ui._pick_look("camo", "bosco"); _snap("locker"); G.ui.escape())
 	at.call(0.3, func(): G.ui.m.quit.pressed.emit())
-	at.call(0.4, func(): assert(G.ui.m.quit_dlg.visible); _snap("quit"); G.ui.escape())
+	at.call(0.4, func(): assert(G.ui.m.quit_dlg.visible); _snap("quit"))
+	at.call(0.3, func(): G.ui.escape())
 	at.call(0.3, func(): G.ui.show_map_menu())
 	at.call(1.5, func(): _snap("maps"); G.ui._pick_map("city"))
 	at.call(0.3, func(): G.ui._show(G.ui.m.map, false); G.ui.show_class_menu(false))
